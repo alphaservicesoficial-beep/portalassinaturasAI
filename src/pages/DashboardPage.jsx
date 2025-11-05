@@ -62,7 +62,7 @@ const sections = [
     itemsPerView: 4,
     tools: [
       {
-        title: 'GPT + Sora',
+        title: 'ChatGPT + Sora',
         description: 'Planeje roteiros e storyboards prontos para geração de cenas com o Sora.',
         image: gptSoraImage,
       },
