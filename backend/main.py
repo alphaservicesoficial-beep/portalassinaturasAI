@@ -1,4 +1,4 @@
-import os  # Adicione isso no topo do arquivo
+import os
 import json
 import secrets
 import string
@@ -11,27 +11,21 @@ from mailer import send_email
 # ==============================
 # 🔧 Inicialização do Firebase
 # ==============================
-# Se a chave estiver no Render (como variável FIREBASE_KEY)
 firebase_key = os.getenv("FIREBASE_KEY")
 
 if firebase_key:
-    # Lê a chave do ambiente (Render)
     cred = credentials.Certificate(json.loads(firebase_key))
 else:
-    # Ambiente local: usa o arquivo físico
     cred_path = os.path.join(os.path.dirname(__file__), "firebase-key.json")
     cred = credentials.Certificate(cred_path)
 
 firebase_admin.initialize_app(cred)
 db = firestore.client()
 
-# O restante do seu código continua aqui...
-
 # ==============================
 # 🚀 Inicialização do FastAPI
 # ==============================
 app = FastAPI(title="Portal Assinaturas Backend", version="1.0.0")
-
 
 # ==============================
 # 📦 Modelo de dados da Kirvano
@@ -51,10 +45,11 @@ async def kirvano_webhook(payload: dict):
     """
     try:
         # Extrai dados do payload
-        email = payload.get("email")
-        subscription_id = payload.get("subscriptionId")
+        email = payload.get("contactEmail")  # Usando contactEmail
         status = payload.get("status")
+        subscription_id = payload.get("sale_id")  # Você pode usar `sale_id` se não precisar do `subscriptionId`.
 
+        # Verifica se o e-mail ou subscriptionId está ausente
         if not email or not subscription_id:
             raise ValueError("Campos obrigatórios ausentes (email ou subscriptionId).")
 
@@ -66,6 +61,9 @@ async def kirvano_webhook(payload: dict):
         try:
             user = auth.get_user_by_email(email)
             user_created = False  # O usuário já existe
+            # Atualiza a senha se necessário
+            auth.update_user(user.uid, password=plain_password)
+            password_updated = True
         except auth.UserNotFoundError:
             # Se o usuário não existir, cria um novo usuário
             user = auth.create_user(
@@ -74,6 +72,7 @@ async def kirvano_webhook(payload: dict):
                 email_verified=True
             )
             user_created = True
+            password_updated = False
 
         # Salva assinatura no Firestore
         db.collection("subscriptions").document(subscription_id).set({
@@ -82,20 +81,20 @@ async def kirvano_webhook(payload: dict):
             "status": status,
         }, merge=True)
 
-        # Envia o e-mail de boas-vindas com a senha temporária (se novo usuário)
+        # Envia o e-mail de boas-vindas com a senha temporária
         send_email(email, plain_password)
 
         return {
             "ok": True,
             "email": email,
             "user_created": user_created,
-            "temp_password": plain_password if user_created else None
+            "temp_password": plain_password if user_created else None,
+            "password_updated": password_updated if not user_created else None
         }
 
     except Exception as e:
         print(f"❌ Erro no webhook: {e}")
         return {"ok": False, "error": str(e)}
-
 
 # ==============================
 # 🧠 Rota simples de teste
