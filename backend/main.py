@@ -1,4 +1,5 @@
 import os
+import json
 import secrets
 import string
 from fastapi import FastAPI
@@ -10,15 +11,20 @@ from mailer import send_email
 # ==============================
 # 🔧 Inicialização do Firebase
 # ==============================
-# Caminho da chave (Render ou local)
-if os.getenv("GOOGLE_APPLICATION_CREDENTIALS"):
-    cred = credentials.Certificate(os.getenv("GOOGLE_APPLICATION_CREDENTIALS"))
+# Se a chave estiver no Render (como variável FIREBASE_KEY)
+firebase_key = os.getenv("FIREBASE_KEY")
+
+if firebase_key:
+    # Lê a chave do ambiente (Render)
+    cred = credentials.Certificate(json.loads(firebase_key))
 else:
+    # Ambiente local: usa o arquivo físico
     cred_path = os.path.join(os.path.dirname(__file__), "firebase-key.json")
     cred = credentials.Certificate(cred_path)
 
 firebase_admin.initialize_app(cred)
 db = firestore.client()
+
 
 # ==============================
 # 🚀 Inicialização do FastAPI
@@ -46,16 +52,14 @@ async def kirvano_webhook(payload: KirvanoPayload):
     - Salva assinatura no Firestore
     - Envia o e-mail com senha gerada
     """
-    # Gera senha aleatória de 10 caracteres
+    # Gera senha aleatória
     alphabet = string.ascii_letters + string.digits
     plain_password = ''.join(secrets.choice(alphabet) for _ in range(10))
 
     try:
-        # Verifica se o usuário já existe
         user = auth.get_user_by_email(payload.email)
         created = False
     except auth.UserNotFoundError:
-        # Cria novo usuário
         user = auth.create_user(
             email=payload.email,
             password=plain_password,
@@ -63,14 +67,14 @@ async def kirvano_webhook(payload: KirvanoPayload):
         )
         created = True
 
-    # Salva assinatura no Firestore
+    # Salva ou atualiza a assinatura
     db.collection("subscriptions").document(payload.subscriptionId).set({
         "user_id": user.uid,
         "email": payload.email,
         "status": payload.status
     }, merge=True)
 
-    # Envia e-mail com senha apenas se o usuário for novo
+    # Envia o e-mail apenas se o usuário for novo
     if created:
         try:
             send_email(payload.email, plain_password)
