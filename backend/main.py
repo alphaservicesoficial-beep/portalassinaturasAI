@@ -36,7 +36,6 @@ class KirvanoPayload(BaseModel):
     sale_id: str  # Usando 'sale_id' ao invés de 'subscriptionId'
 
 # ==============================
-# 🔗 Webhook da Kirvano
 @app.post("/webhook/kirvano")
 async def kirvano_webhook(payload: dict):
     """
@@ -44,9 +43,9 @@ async def kirvano_webhook(payload: dict):
     """
     try:
         # Extrai os dados necessários do payload
-        email = payload.get("contactEmail")  # Usando contactEmail da Kirvano
-        status = payload.get("status")      # Status da compra
-        sale_id = payload.get("sale_id")    # ID da venda (sale_id)
+        email = payload.get("customer", {}).get("email")  # Usando o e-mail do comprador
+        status = payload.get("status")
+        sale_id = payload.get("sale_id")
 
         # Verifica se o e-mail ou sale_id está ausente
         if not email or not sale_id:
@@ -94,6 +93,7 @@ async def kirvano_webhook(payload: dict):
     except Exception as e:
         print(f"❌ Erro no webhook: {e}")
         return {"ok": False, "error": str(e)}
+
 
 # ==============================
 # 🧠 Rota simples de teste
