@@ -1,47 +1,94 @@
+import { useState } from "react";
+import { signInWithEmailAndPassword } from "firebase/auth";
+import { auth } from "../firebase";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faEye, faEyeSlash }
+from "@fortawesome/free-solid-svg-icons"; 
+import { Eye, EyeOff } from "lucide-react";  // Certifique-se que isso está no topo do arquivo
+// Ícones de olho da FontAwesome
+
 function LoginPage({ onLoginSuccess, onForgotPassword }) {
-  const handleSubmit = (event) => {
-    event.preventDefault()
-    onLoginSuccess()
-  }
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [error, setError] = useState("");
+
+  const handleSubmit = async (event) => {
+    event.preventDefault();
+    setError("");
+
+    try {
+      const userCredential = await signInWithEmailAndPassword(
+        auth,
+        email,
+        password
+      );
+      console.log("Usuário logado:", userCredential.user);
+      onLoginSuccess();
+    } catch (err) {
+      console.error("Erro no login:", err);
+      setError("E-mail ou senha incorretos.");
+    }
+  };
 
   return (
     <main className="login-page">
       <section className="login-card neon-border">
         <h1>Portal de Ferramentas de IA</h1>
         <p className="subtitle">
-          Explore e gerencie seu arsenal de inteligência artificial em um só lugar.
+          Explore e gerencie seu arsenal de inteligência artificial em um só
+          lugar.
         </p>
+
         <form className="login-form" onSubmit={handleSubmit}>
           <label htmlFor="email">E-mail</label>
           <input
             id="email"
             name="email"
             type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
             placeholder="nome@empresa.com"
             required
             autoComplete="email"
+            className="input-field"
           />
 
           <label htmlFor="password">Senha</label>
-          <input
-            id="password"
-            name="password"
-            type="password"
-            placeholder="********"
-            required
-            autoComplete="current-password"
-          />
+          <div className="relative w-full">
+  <input
+    id="password"
+    name="password"
+    type={showPassword ? "text" : "password"}
+    value={password}
+    onChange={(e) => setPassword(e.target.value)}
+    placeholder="********"
+    required
+    autoComplete="current-password"
+    className="w-full bg-[#0e1726] border border-cyan-500/40 text-white rounded-lg px-4 py-2 pr-12 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-cyan-400/70 transition-all"
+  />
 
-          <button type="submit" className="button primary-button">
+ 
+</div>
+
+
+
+          {error && <p className="text-red-500 text-sm mt-2">{error}</p>}
+
+          <button type="submit" className="button primary-button mt-2">
             Entrar
           </button>
-          <button type="button" className="link-button" onClick={onForgotPassword}>
+          <button
+            type="button"
+            className="link-button"
+            onClick={onForgotPassword}
+          >
             Esqueci minha senha
           </button>
         </form>
       </section>
     </main>
-  )
+  );
 }
 
-export default LoginPage
+export default LoginPage;

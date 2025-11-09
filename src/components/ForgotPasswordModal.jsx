@@ -1,11 +1,28 @@
 import { useState } from 'react'
+import { sendPasswordResetEmail } from 'firebase/auth'
+import { auth } from '../firebase' // Certifique-se de que você tem a configuração do Firebase exportada de um arquivo 'firebase.js' ou similar.
 
 function ForgotPasswordModal({ onClose }) {
   const [email, setEmail] = useState('')
+  const [error, setError] = useState('') // Para lidar com erros, se necessário
+  const [success, setSuccess] = useState('') // Mensagem de sucesso
 
-  const handleSubmit = (event) => {
+  const handleSubmit = async (event) => {
     event.preventDefault()
-    onClose()
+    setError('') // Limpar qualquer erro anterior
+    setSuccess('') // Limpar qualquer mensagem de sucesso anterior
+
+    try {
+      // Envia o e-mail de redefinição de senha usando o Firebase
+      await sendPasswordResetEmail(auth, email)
+      setSuccess('Instruções para redefinir sua senha foram enviadas para o e-mail informado.')
+      // Você pode fechar o modal ou executar outra ação aqui, por exemplo:
+      // onClose()
+    } catch (err) {
+      // Lidar com erros (caso o e-mail não esteja registrado ou ocorra algum erro no processo)
+      setError('Houve um erro ao enviar as instruções. Verifique se o e-mail está correto.')
+      console.error("Erro ao tentar enviar o e-mail de recuperação: ", err)
+    }
   }
 
   return (
@@ -31,6 +48,11 @@ function ForgotPasswordModal({ onClose }) {
             onChange={(event) => setEmail(event.target.value)}
             required
           />
+
+          {/* Exibir mensagens de erro ou sucesso */}
+          {error && <p className="text-red-500 text-sm">{error}</p>}
+          {success && <p className="text-green-500 text-sm">{success}</p>}
+
           <div className="modal-actions">
             <button type="button" className="button ghost-button" onClick={onClose}>
               Cancelar

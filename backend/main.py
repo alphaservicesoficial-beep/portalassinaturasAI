@@ -1,17 +1,16 @@
-import os
+from firebase_admin import auth
+from fastapi import FastAPI
+from pydantic import BaseModel, EmailStr
 import json
 import secrets
 import string
-from fastapi import FastAPI
-from pydantic import BaseModel, EmailStr
-import firebase_admin
-from firebase_admin import credentials, auth, firestore
 from mailer import send_email
+import firebase_admin
+from firebase_admin import credentials, firestore
 
 # ==============================
 # 🔧 Inicialização do Firebase
 # ==============================
-# Se a chave estiver no Render (como variável FIREBASE_KEY)
 firebase_key = os.getenv("FIREBASE_KEY")
 
 if firebase_key:
@@ -24,7 +23,6 @@ else:
 
 firebase_admin.initialize_app(cred)
 db = firestore.client()
-
 
 # ==============================
 # 🚀 Inicialização do FastAPI
@@ -49,42 +47,30 @@ async def kirvano_webhook(payload: dict):
     Webhook da Kirvano - compatível com payload real da plataforma.
     """
     try:
-        # Extrai dados independente da estrutura
-        email = (
-            payload.get("email")
-            or payload.get("customer", {}).get("email")
-            or payload.get("contactEmail")
-        )
-        subscription_id = (
-            payload.get("subscriptionId")
-            or payload.get("sale_id")
-            or payload.get("checkout_id")
-        )
-        status = (
-            payload.get("status")
-            or payload.get("event_description")
-            or payload.get("event")
-        )
+        # Extrai dados do payload
+        email = payload.get("email")
+        subscription_id = payload.get("subscriptionId")
+        status = payload.get("status")
 
         if not email or not subscription_id:
             raise ValueError("Campos obrigatórios ausentes (email ou subscriptionId).")
 
-        # Gera senha aleatória
-        import secrets, string
+        # Gera senha aleatória para o novo usuário
         alphabet = string.ascii_letters + string.digits
         plain_password = "".join(secrets.choice(alphabet) for _ in range(10))
 
-        # Verifica/Cria usuário
+        # Verifica se o usuário já existe
         try:
             user = auth.get_user_by_email(email)
-            created = False
+            user_created = False  # O usuário já existe
         except auth.UserNotFoundError:
+            # Se o usuário não existir, cria um novo usuário
             user = auth.create_user(
                 email=email,
                 password=plain_password,
                 email_verified=True
             )
-            created = True
+            user_created = True
 
         # Salva assinatura no Firestore
         db.collection("subscriptions").document(subscription_id).set({
@@ -93,15 +79,14 @@ async def kirvano_webhook(payload: dict):
             "status": status,
         }, merge=True)
 
-        # Envia e-mail se for novo usuário
-        if created:
-            send_email(email, plain_password)
+        # Envia o e-mail de boas-vindas com a senha temporária (se novo usuário)
+        send_email(email, plain_password)
 
         return {
             "ok": True,
             "email": email,
-            "user_created": created,
-            "temp_password": plain_password if created else None
+            "user_created": user_created,
+            "temp_password": plain_password if user_created else None
         }
 
     except Exception as e:
@@ -115,11 +100,3 @@ async def kirvano_webhook(payload: dict):
 @app.get("/")
 def root():
     return {"message": "API do Portal Assinaturas AI está online 🚀"}
-
-
-# ==============================
-# Execução local (modo dev)
-# ==============================
-if __name__ == "__main__":
-    import uvicorn
-    uvicorn.run("main:app", host="0.0.0.0", port=int(os.getenv("PORT", 8001)))
