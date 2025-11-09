@@ -45,46 +45,66 @@ class KirvanoPayload(BaseModel):
 # 🔗 Webhook da Kirvano
 # ==============================
 @app.post("/webhook/kirvano")
-async def kirvano_webhook(payload: KirvanoPayload):
+async def kirvano_webhook(payload: dict):
     """
     Recebe o webhook da Kirvano:
     - Cria usuário no Firebase Auth (se não existir)
     - Salva assinatura no Firestore
     - Envia o e-mail com senha gerada
     """
+    # Log para debug
+    print("🔔 Webhook recebido:", payload)
+
+    # Extrai informações com segurança
+    email = (
+        payload.get("email")
+        or payload.get("buyer_email")
+        or payload.get("client", {}).get("email")
+    )
+
+    subscription = payload.get("subscription", {})
+    subscription_id = subscription.get("id") or payload.get("subscriptionId")
+    status = subscription.get("status") or payload.get("status", "unknown")
+
+    if not email or not subscription_id:
+        return {"ok": False, "error": "Campos ausentes", "payload": payload}
+
     # Gera senha aleatória
+    import secrets, string
     alphabet = string.ascii_letters + string.digits
     plain_password = ''.join(secrets.choice(alphabet) for _ in range(10))
 
     try:
-        user = auth.get_user_by_email(payload.email)
+        # Verifica se o usuário já existe
+        user = auth.get_user_by_email(email)
         created = False
     except auth.UserNotFoundError:
+        # Cria novo usuário
         user = auth.create_user(
-            email=payload.email,
+            email=email,
             password=plain_password,
             email_verified=True
         )
         created = True
 
-    # Salva ou atualiza a assinatura
-    db.collection("subscriptions").document(payload.subscriptionId).set({
+    # Salva assinatura no Firestore
+    db.collection("subscriptions").document(subscription_id).set({
         "user_id": user.uid,
-        "email": payload.email,
-        "status": payload.status
+        "email": email,
+        "status": status
     }, merge=True)
 
-    # Envia o e-mail apenas se o usuário for novo
+    # Envia e-mail se for novo usuário
     if created:
         try:
-            send_email(payload.email, plain_password)
+            send_email(email, plain_password)
         except Exception as e:
-            print(f"⚠️ Erro ao enviar e-mail para {payload.email}: {e}")
+            print(f"⚠️ Erro ao enviar e-mail para {email}: {e}")
 
     return {
         "ok": True,
         "user_created": created,
-        "email": payload.email,
+        "email": email,
         "temp_password": plain_password if created else None
     }
 
