@@ -1,0 +1,9 @@
+# venv e ambiente local
+venv/
+__pycache__/
+.env
+firebase-key.json
+
+# arquivos temporários
+*.pyc
+*.log
