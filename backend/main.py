@@ -1,16 +1,17 @@
-from firebase_admin import auth
-from fastapi import FastAPI
-from pydantic import BaseModel, EmailStr
+import os  # Adicione isso no topo do arquivo
 import json
 import secrets
 import string
-from mailer import send_email
+from fastapi import FastAPI
+from pydantic import BaseModel, EmailStr
 import firebase_admin
-from firebase_admin import credentials, firestore
+from firebase_admin import credentials, auth, firestore
+from mailer import send_email
 
 # ==============================
 # 🔧 Inicialização do Firebase
 # ==============================
+# Se a chave estiver no Render (como variável FIREBASE_KEY)
 firebase_key = os.getenv("FIREBASE_KEY")
 
 if firebase_key:
@@ -23,6 +24,8 @@ else:
 
 firebase_admin.initialize_app(cred)
 db = firestore.client()
+
+# O restante do seu código continua aqui...
 
 # ==============================
 # 🚀 Inicialização do FastAPI
