@@ -47,66 +47,57 @@ class KirvanoPayload(BaseModel):
 @app.post("/webhook/kirvano")
 async def kirvano_webhook(payload: dict):
     """
-    Recebe o webhook da Kirvano:
-    - Cria usuário no Firebase Auth (se não existir)
-    - Salva assinatura no Firestore
-    - Envia o e-mail com senha gerada
+    Webhook da Kirvano:
+    Recebe o evento de compra e cria o usuário no Firebase + envia e-mail.
     """
-    # Log para debug
-    print("🔔 Webhook recebido:", payload)
-
-    # Extrai informações com segurança
-    email = (
-        payload.get("email")
-        or payload.get("buyer_email")
-        or payload.get("client", {}).get("email")
-    )
-
-    subscription = payload.get("subscription", {})
-    subscription_id = subscription.get("id") or payload.get("subscriptionId")
-    status = subscription.get("status") or payload.get("status", "unknown")
-
-    if not email or not subscription_id:
-        return {"ok": False, "error": "Campos ausentes", "payload": payload}
-
-    # Gera senha aleatória
-    import secrets, string
-    alphabet = string.ascii_letters + string.digits
-    plain_password = ''.join(secrets.choice(alphabet) for _ in range(10))
-
+    # Extrai os dados conforme o formato real do webhook da Kirvano
     try:
-        # Verifica se o usuário já existe
-        user = auth.get_user_by_email(email)
-        created = False
-    except auth.UserNotFoundError:
-        # Cria novo usuário
-        user = auth.create_user(
-            email=email,
-            password=plain_password,
-            email_verified=True
-        )
-        created = True
+        email = payload.get("customer", {}).get("email")
+        subscription_id = payload.get("sale_id")
+        status = payload.get("status", "UNKNOWN")
 
-    # Salva assinatura no Firestore
-    db.collection("subscriptions").document(subscription_id).set({
-        "user_id": user.uid,
-        "email": email,
-        "status": status
-    }, merge=True)
+        if not email or not subscription_id:
+            return {"ok": False, "error": "Campos obrigatórios ausentes."}
 
-    # Envia e-mail se for novo usuário
-    if created:
+        # Gera senha temporária
+        import secrets, string
+        alphabet = string.ascii_letters + string.digits
+        plain_password = ''.join(secrets.choice(alphabet) for _ in range(10))
+
+        # Verifica/cria usuário
         try:
-            send_email(email, plain_password)
-        except Exception as e:
-            print(f"⚠️ Erro ao enviar e-mail para {email}: {e}")
+            user = auth.get_user_by_email(email)
+            created = False
+        except auth.UserNotFoundError:
+            user = auth.create_user(
+                email=email,
+                password=plain_password,
+                email_verified=True
+            )
+            created = True
 
-    return {
-        "ok": True,
-        "user_created": created,
-        "email": email,
-        "temp_password": plain_password if created else None
-    }
+        # Salva no Firestore
+        db.collection("subscriptions").document(subscription_id).set({
+            "user_id": user.uid,
+            "email": email,
+            "status": status
+        }, merge=True)
+
+        # Envia o e-mail com senha se for novo
+        if created:
+            send_email(email, plain_password)
+
+        return {
+            "ok": True,
+            "user_created": created,
+            "email": email,
+            "temp_password": plain_password if created else None
+        }
+
+    except Exception as e:
+        print(f"⚠️ Erro no webhook: {e}")
+        return {"ok": False, "error": str(e)}
+
 
 
 # ==============================
