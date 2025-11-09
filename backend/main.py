@@ -31,10 +31,9 @@ app = FastAPI(title="Portal Assinaturas Backend", version="1.0.0")
 # 📦 Modelo de dados da Kirvano
 # ==============================
 class KirvanoPayload(BaseModel):
-    email: EmailStr
-    subscriptionId: str
+    email: EmailStr  # Mudamos para 'email' para estar compatível com o modelo
     status: str
-
+    sale_id: str  # Usando 'sale_id' ao invés de 'subscriptionId'
 
 # ==============================
 # 🔗 Webhook da Kirvano
@@ -44,14 +43,14 @@ async def kirvano_webhook(payload: dict):
     Webhook da Kirvano - compatível com payload real da plataforma.
     """
     try:
-        # Extrai dados do payload
-        email = payload.get("contactEmail")  # Usando contactEmail
-        status = payload.get("status")
-        subscription_id = payload.get("sale_id")  # Você pode usar `sale_id` se não precisar do `subscriptionId`.
+        # Extrai os dados necessários do payload
+        email = payload.get("contactEmail")  # Usando contactEmail da Kirvano
+        status = payload.get("status")      # Status da compra
+        sale_id = payload.get("sale_id")    # ID da venda (sale_id)
 
-        # Verifica se o e-mail ou subscriptionId está ausente
-        if not email or not subscription_id:
-            raise ValueError("Campos obrigatórios ausentes (email ou subscriptionId).")
+        # Verifica se o e-mail ou sale_id está ausente
+        if not email or not sale_id:
+            raise ValueError("Campos obrigatórios ausentes (email ou sale_id).")
 
         # Gera senha aleatória para o novo usuário
         alphabet = string.ascii_letters + string.digits
@@ -75,7 +74,7 @@ async def kirvano_webhook(payload: dict):
             password_updated = False
 
         # Salva assinatura no Firestore
-        db.collection("subscriptions").document(subscription_id).set({
+        db.collection("subscriptions").document(sale_id).set({
             "user_id": user.uid,
             "email": email,
             "status": status,
