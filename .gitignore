@@ -1,4 +1,6 @@
-# Logs
+# =========================================
+# 🧩 FRONTEND (React/Vite)
+# =========================================
 logs
 *.log
 npm-debug.log*
@@ -22,3 +24,28 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# =========================================
+# 🐍 BACKEND (Python / FastAPI)
+# =========================================
+# Virtual environment
+backend/venv/
+
+# Python cache
+__pycache__/
+*.pyc
+
+# Environment variables and secrets
+backend/.env
+backend/firebase-key.json
+
+# Build / temp files
+*.log
+*.pid
+*.sqlite3
+*.db
+
+# =========================================
+# 🚀 OS / Misc
+# =========================================
+Thumbs.db
