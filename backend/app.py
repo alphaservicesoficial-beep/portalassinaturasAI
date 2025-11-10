@@ -43,9 +43,12 @@ EMAIL_PASS = os.getenv("EMAIL_PASS")
 SENDER_NAME = os.getenv("SENDER_NAME", "Kirvano")
 
 # --- Configurações de leitura de código (IMAP Gmail) ---
-GMAIL_USER = os.getenv("GMAIL_USER")
-GMAIL_PASS = os.getenv("GMAIL_PASS")
-IMAP_SERVER = "imap.gmail.com"
+# --- Leitura de credenciais de e-mail ---
+EMAIL_USER = os.getenv("EMAIL_USER")
+EMAIL_PASS = os.getenv("EMAIL_PASS")
+SMTP_HOST = os.getenv("SMTP_HOST", "smtp.gmail.com")
+SMTP_PORT = int(os.getenv("SMTP_PORT", "587"))
+
 
 app = Flask(__name__)
 CORS(app, origins=["http://localhost:5173", "https://seusite.com"])
@@ -155,7 +158,7 @@ def kirvano_webhook():
 def gerar_codigo():
     try:
         mail = imaplib.IMAP4_SSL(IMAP_SERVER)
-        mail.login(GMAIL_USER, GMAIL_PASS)
+        mail.login(EMAIL_USER, EMAIL_PASS)
         mail.select("inbox")
 
         result, data = mail.search(None, "ALL")
