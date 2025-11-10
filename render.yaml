@@ -3,9 +3,11 @@ services:
     name: portal-assinaturas-backend
     env: python
     region: oregon
-    buildCommand: ""
-    startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT  # Alterado para usar a variável $PORT
     plan: free
+    buildCommand: "pip install -r requirements.txt"
+    startCommand: "uvicorn main:app --host 0.0.0.0 --port $PORT"
     envVars:
-      - key: PORT
-        # Remover esse valor, pois o Render já define a porta automaticamente
+      # O Render já define automaticamente a variável $PORT, não é necessário configurá-la
+      # Mas se quiser definir outras variáveis, adicione-as abaixo:
+      # - key: DATABASE_URL
+      #   value: sua_string_de_conexao
