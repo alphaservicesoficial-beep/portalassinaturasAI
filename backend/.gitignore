@@ -1,9 +1,4 @@
-# venv e ambiente local
-venv/
+.venv/
 __pycache__/
+serviceAccountKey.json
 .env
-firebase-key.json
-
-# arquivos temporários
-*.pyc
-*.log
