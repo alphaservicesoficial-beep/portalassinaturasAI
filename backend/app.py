@@ -139,7 +139,10 @@ def kirvano_webhook():
             "uid": resultado["uid"]
         }), 200
 
-    except Exception as e:
+        except Exception as e:
+        import traceback
+        print("=== ERRO NO WEBHOOK ===")
+        print(traceback.format_exc())  # Mostra o traceback completo no log do Render
         return jsonify({"ok": False, "error": str(e)}), 500
 
 
