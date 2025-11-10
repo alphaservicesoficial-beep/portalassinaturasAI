@@ -9,6 +9,7 @@ from email.message import EmailMessage
 from datetime import datetime, timezone
 
 from flask import Flask, request, jsonify
+from flask_cors import CORS  # 👈 importa o CORS
 from dotenv import load_dotenv
 from email_validator import validate_email, EmailNotValidError
 
@@ -38,9 +39,16 @@ SMTP_HOST = os.getenv("SMTP_HOST")
 SMTP_PORT = int(os.getenv("SMTP_PORT", "587"))
 EMAIL_USER = os.getenv("EMAIL_USER")
 EMAIL_PASS = os.getenv("EMAIL_PASS")
-SENDER_NAME = os.getenv("SENDER_NAME", "Kirvano")
+SENDER_NAME = os.getenv("SENDER_NAME", "Equipe Kirvano")
 
+# --- Inicializa Flask ---
 app = Flask(__name__)
+
+# ✅ Libera o front local e o domínio do Render
+CORS(app, origins=[
+    "http://localhost:5173",
+    "https://kirvano-frontend.onrender.com"
+])
 
 # --- Funções auxiliares ---
 
@@ -76,6 +84,7 @@ Atenciosamente,
         server.send_message(msg)
 
 def criar_usuario_e_enviar(email: str):
+    """Cria um usuário no Firebase Auth, sobrescreve se já existir, e envia o e-mail"""
     try:
         email_validado = validate_email(email, check_deliverability=False).normalized
     except EmailNotValidError as e:
@@ -83,35 +92,39 @@ def criar_usuario_e_enviar(email: str):
 
     senha = gerar_senha()
 
+    # 🔁 Se já existir, apaga e recria
     try:
-        user = auth.create_user(email=email_validado, password=senha)
-    except auth.EmailAlreadyExistsError:
-        user = auth.get_user_by_email(email_validado)
-        auth.update_user(user.uid, password=senha)
+        old_user = auth.get_user_by_email(email_validado)
+        auth.delete_user(old_user.uid)
+    except auth.UserNotFoundError:
+        pass
 
+    # Cria o novo usuário com senha
+    user = auth.create_user(email=email_validado, password=senha)
+
+    # Salva no Firestore
     db.collection("usuarios").document(user.uid).set({
         "email": email_validado,
         "criado_em": datetime.now(timezone.utc).isoformat()
     })
 
+    # Envia o e-mail
     enviar_email_credenciais(email_validado, senha)
+
     return {"ok": True, "uid": user.uid}
 
 
 # --- Rota do webhook da Kirvano ---
 @app.post("/webhook/kirvano")
 def kirvano_webhook():
-    """
-    Recebe notificações da Kirvano e cria usuário quando a compra é aprovada.
-    """
+    """Recebe notificações da Kirvano e cria usuário quando a compra é aprovada."""
     data = request.get_json(silent=True) or {}
     print("📦 Payload recebido:", data)
 
-    # Verifica se é uma venda aprovada
+    # Ignora eventos não relacionados a venda aprovada
     if data.get("event") != "SALE_APPROVED" or data.get("status") != "APPROVED":
         return jsonify({"ok": True, "msg": "Evento ignorado"}), 200
 
-    # Extrai informações do cliente
     customer = data.get("customer", {})
     email = customer.get("email")
     nome = customer.get("name", "Cliente Kirvano")
@@ -119,15 +132,12 @@ def kirvano_webhook():
     if not email:
         return jsonify({"ok": False, "error": "E-mail não encontrado no payload"}), 400
 
-    # Extrai produto (opcional)
     produtos = data.get("products", [])
     produto_nome = produtos[0].get("name") if produtos else "Produto Kirvano"
 
     try:
-        # Cria o usuário e envia e-mail
         resultado = criar_usuario_e_enviar(email)
 
-        # Salva informações no Firestore
         db.collection("kirvano_compras").add({
             "email": email,
             "nome": nome,
@@ -148,10 +158,10 @@ def kirvano_webhook():
 
     except Exception as e:
         print("❌ ERRO NO WEBHOOK:")
-        print(traceback.format_exc())  # Mostra o traceback completo no log do Render
+        print(traceback.format_exc())
         return jsonify({"ok": False, "error": str(e)}), 500
 
 
-# --- Inicialização ---
+# --- Inicialização local ---
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=10000, debug=True)
