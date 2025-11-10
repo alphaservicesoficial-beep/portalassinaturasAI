@@ -3,3 +3,5 @@ python-dotenv
 firebase-admin
 email-validator
 gunicorn
+flask-cors
+
