@@ -35,21 +35,18 @@ if not firebase_admin._apps:
 
 db = firestore.client()
 
-# --- Configurações de e-mail ---
-SMTP_HOST = os.getenv("SMTP_HOST")
+# --- Configurações de e-mail (envio e leitura) ---
+SMTP_HOST = os.getenv("SMTP_HOST", "smtp.gmail.com")
 SMTP_PORT = int(os.getenv("SMTP_PORT", "587"))
 EMAIL_USER = os.getenv("EMAIL_USER")
 EMAIL_PASS = os.getenv("EMAIL_PASS")
 SENDER_NAME = os.getenv("SENDER_NAME", "Kirvano")
 
-# --- Configurações de leitura de código (IMAP Gmail) ---
-# --- Leitura de credenciais de e-mail ---
-EMAIL_USER = os.getenv("EMAIL_USER")
-EMAIL_PASS = os.getenv("EMAIL_PASS")
-SMTP_HOST = os.getenv("SMTP_HOST", "smtp.gmail.com")
-SMTP_PORT = int(os.getenv("SMTP_PORT", "587"))
+# Configuração padrão do IMAP para leitura do Gmail
+IMAP_SERVER = os.getenv("IMAP_SERVER", "imap.gmail.com")
+IMAP_PORT = int(os.getenv("IMAP_PORT", "993"))
 
-
+# --- Flask App ---
 app = Flask(__name__)
 CORS(app, origins=["http://localhost:5173", "https://seusite.com"])
 
@@ -153,11 +150,11 @@ def kirvano_webhook():
         print(traceback.format_exc())
         return jsonify({"ok": False, "error": str(e)}), 500
 
-# --- Nova rota: leitura do último código do e-mail ---
+# --- Rota: leitura do último código de autenticação do Gmail ---
 @app.get("/gerar-codigo")
 def gerar_codigo():
     try:
-        mail = imaplib.IMAP4_SSL(IMAP_SERVER)
+        mail = imaplib.IMAP4_SSL(IMAP_SERVER, IMAP_PORT)
         mail.login(EMAIL_USER, EMAIL_PASS)
         mail.select("inbox")
 
@@ -175,9 +172,9 @@ def gerar_codigo():
         if msg.is_multipart():
             for part in msg.walk():
                 if part.get_content_type() == "text/plain":
-                    body += part.get_payload(decode=True).decode()
+                    body += part.get_payload(decode=True).decode(errors="ignore")
         else:
-            body = msg.get_payload(decode=True).decode()
+            body = msg.get_payload(decode=True).decode(errors="ignore")
 
         match = re.search(r"\b\d{6}\b", body)
         code = match.group() if match else None
