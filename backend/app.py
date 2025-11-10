@@ -5,14 +5,15 @@ import secrets
 import string
 import json
 import traceback
+import imaplib
+import email
+import re
 from email.message import EmailMessage
 from datetime import datetime, timezone
-
 from flask import Flask, request, jsonify
-from flask_cors import CORS  # 👈 importa o CORS
+from flask_cors import CORS
 from dotenv import load_dotenv
 from email_validator import validate_email, EmailNotValidError
-
 import firebase_admin
 from firebase_admin import credentials, auth, firestore
 
@@ -39,16 +40,15 @@ SMTP_HOST = os.getenv("SMTP_HOST")
 SMTP_PORT = int(os.getenv("SMTP_PORT", "587"))
 EMAIL_USER = os.getenv("EMAIL_USER")
 EMAIL_PASS = os.getenv("EMAIL_PASS")
-SENDER_NAME = os.getenv("SENDER_NAME", "Equipe Kirvano")
+SENDER_NAME = os.getenv("SENDER_NAME", "Kirvano")
 
-# --- Inicializa Flask ---
+# --- Configurações de leitura de código (IMAP Gmail) ---
+GMAIL_USER = os.getenv("GMAIL_USER")
+GMAIL_PASS = os.getenv("GMAIL_PASS")
+IMAP_SERVER = "imap.gmail.com"
+
 app = Flask(__name__)
-
-# ✅ Libera o front local e o domínio do Render
-CORS(app, origins=[
-    "http://localhost:5173",
-    "https://kirvano-frontend.onrender.com"
-])
+CORS(app, origins=["http://localhost:5173", "https://seusite.com"])
 
 # --- Funções auxiliares ---
 
@@ -84,7 +84,6 @@ Atenciosamente,
         server.send_message(msg)
 
 def criar_usuario_e_enviar(email: str):
-    """Cria um usuário no Firebase Auth, sobrescreve se já existir, e envia o e-mail"""
     try:
         email_validado = validate_email(email, check_deliverability=False).normalized
     except EmailNotValidError as e:
@@ -92,36 +91,26 @@ def criar_usuario_e_enviar(email: str):
 
     senha = gerar_senha()
 
-    # 🔁 Se já existir, apaga e recria
     try:
-        old_user = auth.get_user_by_email(email_validado)
-        auth.delete_user(old_user.uid)
-    except auth.UserNotFoundError:
-        pass
+        user = auth.create_user(email=email_validado, password=senha)
+    except auth.EmailAlreadyExistsError:
+        user = auth.get_user_by_email(email_validado)
+        auth.update_user(user.uid, password=senha)
 
-    # Cria o novo usuário com senha
-    user = auth.create_user(email=email_validado, password=senha)
-
-    # Salva no Firestore
     db.collection("usuarios").document(user.uid).set({
         "email": email_validado,
         "criado_em": datetime.now(timezone.utc).isoformat()
     })
 
-    # Envia o e-mail
     enviar_email_credenciais(email_validado, senha)
-
     return {"ok": True, "uid": user.uid}
 
-
-# --- Rota do webhook da Kirvano ---
+# --- Webhook da Kirvano ---
 @app.post("/webhook/kirvano")
 def kirvano_webhook():
-    """Recebe notificações da Kirvano e cria usuário quando a compra é aprovada."""
     data = request.get_json(silent=True) or {}
     print("📦 Payload recebido:", data)
 
-    # Ignora eventos não relacionados a venda aprovada
     if data.get("event") != "SALE_APPROVED" or data.get("status") != "APPROVED":
         return jsonify({"ok": True, "msg": "Evento ignorado"}), 200
 
@@ -161,7 +150,45 @@ def kirvano_webhook():
         print(traceback.format_exc())
         return jsonify({"ok": False, "error": str(e)}), 500
 
+# --- Nova rota: leitura do último código do e-mail ---
+@app.get("/gerar-codigo")
+def gerar_codigo():
+    try:
+        mail = imaplib.IMAP4_SSL(IMAP_SERVER)
+        mail.login(GMAIL_USER, GMAIL_PASS)
+        mail.select("inbox")
 
-# --- Inicialização local ---
+        result, data = mail.search(None, "ALL")
+        mail_ids = data[0].split()
+        if not mail_ids:
+            return jsonify({"ok": False, "error": "Nenhum e-mail encontrado"}), 404
+
+        latest_email_id = mail_ids[-1]
+        result, data = mail.fetch(latest_email_id, "(RFC822)")
+        raw_email = data[0][1]
+        msg = email.message_from_bytes(raw_email)
+
+        body = ""
+        if msg.is_multipart():
+            for part in msg.walk():
+                if part.get_content_type() == "text/plain":
+                    body += part.get_payload(decode=True).decode()
+        else:
+            body = msg.get_payload(decode=True).decode()
+
+        match = re.search(r"\b\d{6}\b", body)
+        code = match.group() if match else None
+
+        if not code:
+            return jsonify({"ok": False, "error": "Código não encontrado"}), 404
+
+        return jsonify({"ok": True, "code": code}), 200
+
+    except Exception as e:
+        print("❌ ERRO AO LER CÓDIGO:")
+        print(traceback.format_exc())
+        return jsonify({"ok": False, "error": str(e)}), 500
+
+# --- Inicialização ---
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=10000, debug=True)

@@ -1,5 +1,12 @@
+// src/components/ManageUserModal.jsx
 import { useState } from "react";
-import { Eye, EyeOff } from "lucide-react"; // Ícones modernos
+import { Eye, EyeOff } from "lucide-react";
+import { auth } from "../firebase";
+import {
+  reauthenticateWithCredential,
+  EmailAuthProvider,
+  updatePassword,
+} from "firebase/auth";
 
 function ManageUserModal({ onClose }) {
   const [formState, setFormState] = useState({
@@ -13,6 +20,8 @@ function ManageUserModal({ onClose }) {
     new: false,
     confirm: false,
   });
+
+  const [loading, setLoading] = useState(false);
 
   const handleChange = (event) => {
     const { name, value } = event.target;
@@ -29,9 +38,47 @@ function ManageUserModal({ onClose }) {
     }));
   };
 
-  const handleSubmit = (event) => {
+  const handleSubmit = async (event) => {
     event.preventDefault();
-    onClose();
+
+    const user = auth.currentUser;
+    if (!user) {
+      alert("Usuário não autenticado!");
+      return;
+    }
+
+    if (formState.newPassword !== formState.confirmPassword) {
+      alert("As senhas não coincidem!");
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      // 🔒 Reautentica o usuário com a senha atual
+      const credential = EmailAuthProvider.credential(
+        user.email,
+        formState.currentPassword
+      );
+      await reauthenticateWithCredential(user, credential);
+
+      // ✅ Atualiza a senha
+      await updatePassword(user, formState.newPassword);
+
+      alert("Senha atualizada com sucesso!");
+      onClose();
+    } catch (error) {
+      console.error("Erro ao atualizar senha:", error);
+      if (error.code === "auth/wrong-password") {
+        alert("Senha atual incorreta.");
+      } else if (error.code === "auth/weak-password") {
+        alert("A nova senha é muito fraca.");
+      } else {
+        alert("Erro ao alterar senha. Tente novamente.");
+      }
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -74,8 +121,8 @@ function ManageUserModal({ onClose }) {
               className="w-full bg-[#0e1726] border border-cyan-500/40 text-white rounded-lg px-4 py-2 pr-10 
                          placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-cyan-400/70 transition-all"
             />
-            {/* Ícone de olho para mostrar/ocultar a senha */}
             
+        
           </div>
 
           {/* Nova Senha */}
@@ -93,7 +140,6 @@ function ManageUserModal({ onClose }) {
               className="w-full bg-[#0e1726] border border-cyan-500/40 text-white rounded-lg px-4 py-2 pr-10 
                          placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-cyan-400/70 transition-all"
             />
-            {/* Ícone de olho para mostrar/ocultar a senha */}
             
           </div>
 
@@ -109,14 +155,14 @@ function ManageUserModal({ onClose }) {
               placeholder="Repita a nova senha"
               required
               minLength={6}
-              className="w-full bg-[#0e1726] border border-cyan-500/40 text-white rounded-lg px-4 py-2 pr-12 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-cyan-400/70 transition-all"
+              className="w-full bg-[#0e1726] border border-cyan-500/40 text-white rounded-lg px-4 py-2 pr-10 
+                         placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-cyan-400/70 transition-all"
             />
-            {/* Ícone de olho para mostrar/ocultar a senha */}
-           
+            
           </div>
 
           {/* Botões */}
-          <div className="modal-actions">
+          <div className="modal-actions mt-4 flex justify-end gap-3">
             <button
               type="button"
               className="button ghost-button"
@@ -124,8 +170,14 @@ function ManageUserModal({ onClose }) {
             >
               Cancelar
             </button>
-            <button type="submit" className="button primary-button">
-              Salvar
+            <button
+              type="submit"
+              disabled={loading}
+              className={`button primary-button ${
+                loading ? "opacity-50 cursor-not-allowed" : ""
+              }`}
+            >
+              {loading ? "Salvando..." : "Salvar"}
             </button>
           </div>
         </form>
