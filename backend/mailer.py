@@ -1,8 +1,14 @@
 import os
-import requests
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
 
-RESEND_API_KEY = os.getenv("RESEND_API_KEY")
-FROM_EMAIL = os.getenv("FROM_EMAIL", "portal@onresend.com")
+SMTP_SERVER = os.getenv("SMTP_SERVER", "smtp.gmail.com")
+SMTP_PORT = int(os.getenv("SMTP_PORT", 587))
+SMTP_EMAIL = os.getenv("SMTP_EMAIL")  # testeconcursopdf@gmail.com
+SMTP_PASSWORD = os.getenv("SMTP_PASSWORD")  # senha de app do Gmail
+FROM_NAME = os.getenv("FROM_NAME", "Portal Assinaturas AI")
+
 
 def send_email(to_email: str, temp_password: str):
     subject = "Acesso ao Portal Assinaturas AI"
@@ -16,25 +22,26 @@ def send_email(to_email: str, temp_password: str):
     <p>Atenciosamente,<br>Portal Assinaturas AI</p>
     """
 
-    data = {
-        "from": f"Portal Assinaturas AI <{FROM_EMAIL}>",
-        "to": [to_email],
-        "subject": subject,
-        "html": body_html
-    }
+    # Cria a mensagem MIME
+    msg = MIMEMultipart("alternative")
+    msg["From"] = f"{FROM_NAME} <{SMTP_EMAIL}>"
+    msg["To"] = to_email
+    msg["Subject"] = subject
 
-    print("📨 Enviando e-mail via Resend...")
+    msg.attach(MIMEText(body_html, "html"))
+
+    print("📨 Enviando e-mail via Gmail SMTP...")
+
     try:
-        resp = requests.post(
-            "https://api.resend.com/emails",
-            headers={
-                "Authorization": f"Bearer {RESEND_API_KEY}",
-                "Content-Type": "application/json"
-            },
-            json=data
-        )
-        resp.raise_for_status()
-        print(f"✅ E-mail enviado para {to_email}")
+        # Conecta ao servidor SMTP do Gmail
+        with smtplib.SMTP(SMTP_SERVER, SMTP_PORT) as server:
+            server.starttls()  # segurança
+            server.login(SMTP_EMAIL, SMTP_PASSWORD)
+            server.send_message(msg)
+
+        print(f"✅ E-mail enviado com sucesso para {to_email}")
+        return True
+
     except Exception as e:
         print(f"⚠️ Erro ao enviar e-mail: {e}")
-        print(f"Resposta Resend: {resp.text if 'resp' in locals() else 'sem resposta'}")
+        return False
