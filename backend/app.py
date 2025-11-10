@@ -3,6 +3,8 @@ import smtplib
 import ssl
 import secrets
 import string
+import json
+import traceback
 from email.message import EmailMessage
 from datetime import datetime, timezone
 
@@ -16,18 +18,22 @@ from firebase_admin import credentials, auth, firestore
 # --- Carrega variáveis do .env ---
 load_dotenv()
 
-import json
-
+# --- Inicializa Firebase ---
 cred_json = os.getenv("FIREBASE_CRED_JSON")
 if not firebase_admin._apps:
-    if cred_json:
-        cred = credentials.Certificate(json.loads(cred_json))
-    else:
-        cred = credentials.Certificate("serviceAccountKey.json")
-    firebase_admin.initialize_app(cred)
+    try:
+        if cred_json:
+            cred = credentials.Certificate(json.loads(cred_json))
+        else:
+            cred = credentials.Certificate("serviceAccountKey.json")
+        firebase_admin.initialize_app(cred)
+    except Exception as e:
+        print("❌ ERRO AO INICIALIZAR FIREBASE:")
+        print(traceback.format_exc())
 
 db = firestore.client()
 
+# --- Configurações de e-mail ---
 SMTP_HOST = os.getenv("SMTP_HOST")
 SMTP_PORT = int(os.getenv("SMTP_PORT", "587"))
 EMAIL_USER = os.getenv("EMAIL_USER")
@@ -91,7 +97,7 @@ def criar_usuario_e_enviar(email: str):
     enviar_email_credenciais(email_validado, senha)
     return {"ok": True, "uid": user.uid}
 
-# --- Rota principal de teste ---
+
 # --- Rota do webhook da Kirvano ---
 @app.post("/webhook/kirvano")
 def kirvano_webhook():
@@ -99,6 +105,7 @@ def kirvano_webhook():
     Recebe notificações da Kirvano e cria usuário quando a compra é aprovada.
     """
     data = request.get_json(silent=True) or {}
+    print("📦 Payload recebido:", data)
 
     # Verifica se é uma venda aprovada
     if data.get("event") != "SALE_APPROVED" or data.get("status") != "APPROVED":
@@ -139,12 +146,12 @@ def kirvano_webhook():
             "uid": resultado["uid"]
         }), 200
 
-        except Exception as e:
-        import traceback
-        print("=== ERRO NO WEBHOOK ===")
+    except Exception as e:
+        print("❌ ERRO NO WEBHOOK:")
         print(traceback.format_exc())  # Mostra o traceback completo no log do Render
         return jsonify({"ok": False, "error": str(e)}), 500
 
 
+# --- Inicialização ---
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=10000, debug=True)
