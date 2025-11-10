@@ -16,9 +16,15 @@ from firebase_admin import credentials, auth, firestore
 # --- Carrega variáveis do .env ---
 load_dotenv()
 
-cred_path = os.getenv("FIREBASE_CRED", "serviceAccountKey.json")
+import json
+
+cred_json = os.getenv("FIREBASE_CRED_JSON")
 if not firebase_admin._apps:
-    firebase_admin.initialize_app(credentials.Certificate(cred_path))
+    if cred_json:
+        cred = credentials.Certificate(json.loads(cred_json))
+    else:
+        cred = credentials.Certificate("serviceAccountKey.json")
+    firebase_admin.initialize_app(cred)
 
 db = firestore.client()
 
