@@ -10,7 +10,7 @@ import email
 import re
 from email.message import EmailMessage
 from datetime import datetime, timezone
-from flask import Flask, request, jsonify, send_from_directory
+from flask import Flask, request, jsonify, send_from_directory, make_response  
 from flask_cors import CORS
 from dotenv import load_dotenv
 from email_validator import validate_email, EmailNotValidError
@@ -48,8 +48,34 @@ IMAP_PORT = int(os.getenv("IMAP_PORT", "993"))
 
 # --- Flask App ---
 app = Flask(__name__)
-CORS(app, origins=["http://localhost:5173", "https://aiportalacesso.netlify.app"])
 
+# Domínios do seu front
+ALLOWED_ORIGINS = [
+    "http://localhost:5173",
+    "https://aiportalacesso.netlify.app",
+]
+
+# CORS para todas as rotas, permitindo os domínios acima
+CORS(
+    app,
+    resources={r"/*": {"origins": ALLOWED_ORIGINS}},
+    supports_credentials=True
+)
+
+# Garante headers de CORS em TODAS as respostas (inclusive preflight)
+@app.after_request
+def after_request(response):
+    origin = request.headers.get("Origin")
+    if origin in ALLOWED_ORIGINS:
+        response.headers["Access-Control-Allow-Origin"]  = origin
+    else:
+        # se não for um origin permitido, não injeta o header (evita barulho)
+        pass
+
+    response.headers["Vary"] = "Origin"
+    response.headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization"
+    response.headers["Access-Control-Allow-Methods"] = "GET, POST, OPTIONS"
+    return response
 # --- Servir arquivos da pasta /public ---
 @app.route('/public/<path:filename>')
 def serve_public(filename):
@@ -222,11 +248,17 @@ def kirvano_webhook():
 
 @app.route("/gerar-codigo", methods=["POST", "OPTIONS"])
 def gerar_codigo():
-    data = request.get_json(silent=True) or {}
-    email = data.get("email")
-    if not email:
-        return jsonify({"ok": False, "error": "E-mail não informado"}), 400
+    # 1️⃣ Preflight: navegador testa antes do POST real
+    if request.method == "OPTIONS":
+        resp = make_response("", 204)  # 204 = no content
+        origin = request.headers.get("Origin")
+        if origin in ALLOWED_ORIGINS:
+            resp.headers["Access-Control-Allow-Origin"] = origin
+        resp.headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization"
+        resp.headers["Access-Control-Allow-Methods"] = "POST, OPTIONS"
+        return resp
 
+    # 2️⃣ POST normal (a partir daqui é o código de verdade)
     try:
         data = request.get_json(silent=True) or {}
         email_usuario = data.get("email")
@@ -234,7 +266,7 @@ def gerar_codigo():
         if not email_usuario:
             return jsonify({"ok": False, "error": "E-mail do usuário não informado"}), 400
 
-        # Verifica se já gerou código hoje
+        # --- Limite de 2 códigos por dia ---
         hoje = datetime.now(timezone.utc).date()
         ref = db.collection("codigos_gerados").document(email_usuario)
         doc = ref.get()
@@ -253,7 +285,7 @@ def gerar_codigo():
         else:
             ref.set({"data": str(hoje), "total": 1})
 
-        # AQUI você mantém o código de leitura do Gmail:
+        # --- Leitura do e-mail IMAP ---
         mail = imaplib.IMAP4_SSL(IMAP_SERVER, IMAP_PORT)
         mail.login(EMAIL_USER, EMAIL_PASS)
         mail.select("inbox")
@@ -312,7 +344,7 @@ def preview_email():
             <p style="font-size:16px; margin:6px 0;"><strong>Senha:</strong> {senha}</p>
           </div>
 
-          <a href="https://portal.kirvano.com"
+          <a href="https://aiportalacesso.netlify.app"
             style="background:linear-gradient(90deg,#00ffff,#0077ff); padding:12px 30px; color:#0e1726; text-decoration:none;
                    font-weight:bold; border-radius:10px; display:inline-block; margin-top:10px;">
             Acessar o Portal
