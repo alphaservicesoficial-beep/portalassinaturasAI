@@ -121,7 +121,7 @@ def enviar_email_credenciais(destinatario: str, senha: str):
         <p style="font-size:16px; margin:6px 0;"><strong>E-mail:</strong> {destinatario}</p>
         <p style="font-size:16px; margin:6px 0;"><strong>Senha:</strong> {senha}</p>
       </div>
-      <a href="https://portal.kirvano.com"
+      <a href="https://aiportalacesso.netlify.app"
          style="background:linear-gradient(90deg,#00ffff,#0077ff); padding:12px 30px; color:#0e1726;
                 text-decoration:none; font-weight:bold; border-radius:10px; display:inline-block;">
         Acessar o Portal
