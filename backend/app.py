@@ -80,7 +80,8 @@ def enviar_email_credenciais(destinatario: str, senha: str):
             <table role="presentation" cellspacing="0" cellpadding="0" border="0">
               <tr>
                 <td style="padding-right:10px;">
-                  <img src="/marca.png" alt="Logo Kirvano" width="50" style="border-radius:10px;">
+                  <img src="{request.host_url}marca.png" alt="Logo Kirvano" width="50" style="border-radius:10px;">
+
                 </td>
                 <td>
                   <h1 style="margin:0; font-size:20px; color:#fff; font-weight:800; font-family:Arial,Helvetica,sans-serif;">
@@ -224,6 +225,20 @@ def kirvano_webhook():
 @app.get("/gerar-codigo")
 def gerar_codigo():
     try:
+        email_usuario = request.args.get("email")
+        if not email_usuario:
+            return jsonify({"ok": False, "error": "E-mail do usuário não informado"}), 400
+
+        hoje = datetime.now(timezone.utc).date()
+
+        # Busca no Firestore quantas vezes o usuário gerou hoje
+        registros_ref = db.collection("codigo_logs").where("email", "==", email_usuario).where("data", "==", str(hoje))
+        registros = list(registros_ref.stream())
+
+        if len(registros) >= 2:
+            return jsonify({"ok": False, "error": "Limite diário de 2 códigos atingido"}), 403
+
+        # Conecta ao e-mail e busca o código
         mail = imaplib.IMAP4_SSL(IMAP_SERVER, IMAP_PORT)
         mail.login(EMAIL_USER, EMAIL_PASS)
         mail.select("inbox")
@@ -251,6 +266,13 @@ def gerar_codigo():
 
         if not code:
             return jsonify({"ok": False, "error": "Código não encontrado"}), 404
+
+        # Registra a geração do código
+        db.collection("codigo_logs").add({
+            "email": email_usuario,
+            "data": str(hoje),
+            "gerado_em": datetime.now(timezone.utc).isoformat(),
+        })
 
         return jsonify({"ok": True, "code": code}), 200
 

@@ -21,7 +21,7 @@ const tutorialConfigs = {
         "Gere seu código de autenticação de dois fatores para acessar a ferramenta {tool}.",
       hint: "Certifique-se de que você está na opção AUTENTICADOR antes de gerar o código de acesso. O código dura somente 30s.",
       actionLabel: "Gerar código",
-      note: "Você pode solicitar até 5 CÓDIGOS válidos por dia. Utilize somente quando necessário.",
+      note: "Você pode solicitar até 2 CÓDIGOS válidos por dia. Utilize somente quando necessário.",
     },
   },
 };
@@ -97,46 +97,35 @@ function AccessGuidePage({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [timer, setTimer] = useState(0);
+  
 
-  const handleGerarCodigo = async () => {
-    setLoading(true);
-    setError(null);
-    setCodigo(null);
-    setTimer(0);
+const handleGerarCodigo = async () => {
+  setLoading(true);
+  setError(null);
+  setCodigo(null);
+  setTimer(0);
 
-    try {
-      const response = await fetch(
-        "https://kirvano-backend-warn.onrender.com/gerar-codigo"
-      );
-      const data = await response.json();
+  try {
+    const response = await fetch(
+      `https://kirvano-backend-warn.onrender.com/gerar-codigo?email=${encodeURIComponent(credentials.emailValue)}`
+    );
+    const data = await response.json();
 
-      if (data.ok && data.code) {
-        setCodigo(data.code);
-        setTimer(30);
-
-        // ⏳ Inicia a contagem regressiva
-        const interval = setInterval(() => {
-          setTimer((prev) => {
-            if (prev <= 1) {
-              clearInterval(interval);
-              setCodigo(null);
-              return 0;
-            }
-            return prev - 1;
-          });
-        }, 1000);
-      } else {
-        setError(data.error || "Não foi possível gerar o código.");
-      }
-    } catch (err) {
-      console.error(err);
-      setError("Erro ao conectar ao servidor.");
-    } finally {
-      setLoading(false);
+    if (data.ok && data.code) {
+      setCodigo(data.code);
+      setTimer(30);
+      // ...
+    } else {
+      setError(data.error || "Não foi possível gerar o código.");
     }
-  };
+  } catch (err) {
+    console.error(err);
+    setError("Erro ao conectar ao servidor.");
+  } finally {
+    setLoading(false);
+  }
+};
 
- 
 
 
   return (
