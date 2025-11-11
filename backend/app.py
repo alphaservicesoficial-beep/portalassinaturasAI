@@ -59,12 +59,13 @@ def gerar_senha(tamanho: int = 10) -> str:
 def enviar_email_credenciais(destinatario: str, senha: str):
     assunto = "Acesso liberado ao Portal de Ferramentas"
 
+    # Corpo do e-mail com o logo embutido
     corpo_html = f"""
     <div style="background-color:#0e1726; padding:40px; font-family:Arial, Helvetica, sans-serif; color:#ffffff;">
       <div style="max-width:600px; margin:auto; background-color:#141e30; border-radius:16px; overflow:hidden; box-shadow:0 0 25px rgba(0,255,255,0.2);">
         <div style="background:linear-gradient(90deg, #00ffff, #0077ff); padding:20px 0; text-align:center;">
-          <img src="https://seusite.com/static/logo.png" alt="Logo Kirvano" width="140" style="margin-bottom:10px;">
-          <h1 style="margin:0; font-size:24px; color:#fff; letter-spacing:1px;">Portal de Ferramentas Kirvano</h1>
+          <img src="cid:kirvano_logo" alt="Logo Kirvano" width="120" style="margin-bottom:10px; border-radius:12px;">
+          <h1 style="margin:0; font-size:24px; color:#fff; letter-spacing:1px;">Portal de Ferramentas Dominando Animações/h1>
         </div>
 
         <div style="padding:30px; text-align:center;">
@@ -76,8 +77,8 @@ def enviar_email_credenciais(destinatario: str, senha: str):
             <p style="font-size:16px; margin:6px 0;"><strong>Senha:</strong> {senha}</p>
           </div>
 
-          <a href="https://portal.kirvano.com" 
-            style="background:linear-gradient(90deg,#00ffff,#0077ff); padding:12px 30px; color:#0e1726; text-decoration:none; 
+          <a href="https://portal.kirvano.com"
+            style="background:linear-gradient(90deg,#00ffff,#0077ff); padding:12px 30px; color:#0e1726; text-decoration:none;
                    font-weight:bold; border-radius:10px; display:inline-block; margin-top:10px;">
             Acessar o Portal
           </a>
@@ -95,17 +96,36 @@ def enviar_email_credenciais(destinatario: str, senha: str):
     </div>
     """
 
+    # --- Monta o e-mail com o logo embutido ---
     msg = EmailMessage()
     msg["Subject"] = assunto
     msg["From"] = f"{SENDER_NAME} <{EMAIL_USER}>"
     msg["To"] = destinatario
     msg.add_alternative(corpo_html, subtype="html")
 
+    # Caminho da logo dentro da pasta public
+    logo_path = os.path.join(os.path.dirname(__file__), "../public/marca.png")
+
+    if os.path.exists(logo_path):
+        with open(logo_path, "rb") as img:
+            msg.get_payload()[0].add_related(
+                img.read(),
+                maintype="image",
+                subtype="png",
+                cid="<kirvano_logo>",
+                filename="marca.png",
+            )
+    else:
+        print("⚠️ Logo não encontrada em:", logo_path)
+
+    # --- Envia ---
     contexto = ssl.create_default_context()
     with smtplib.SMTP(SMTP_HOST, SMTP_PORT) as server:
         server.starttls(context=contexto)
         server.login(EMAIL_USER, EMAIL_PASS)
         server.send_message(msg)
+
+    print(f"📧 E-mail enviado com sucesso para {destinatario}")
 
 
 def criar_usuario_e_enviar(email: str):
