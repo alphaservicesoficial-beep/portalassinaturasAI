@@ -262,12 +262,35 @@ def gerar_codigo():
         if not email_usuario:
             return jsonify({"ok": False, "error": "E-mail do usuário não informado"}), 400
 
-        # --- MOCK SIMPLES PRA TESTAR ---
-        print(f"✅ Requisição recebida de: {email_usuario}")
-        return jsonify({"ok": True, "code": "123456"}), 200
+        # === Limite de 2 códigos por dia ===
+        hoje = datetime.now(timezone.utc).date()
+        ref = db.collection("codigos_gerados").document(email_usuario)
+        doc = ref.get()
+
+        if doc.exists:
+            dados = doc.to_dict()
+            ultima_data = dados.get("data")
+            total = dados.get("total", 0)
+
+            if ultima_data == str(hoje) and total >= 2:
+                print(f"🚫 Limite atingido para {email_usuario}")
+                return jsonify({"ok": False, "error": "Limite diário de 2 códigos atingido"}), 403
+
+            elif ultima_data == str(hoje):
+                ref.update({"total": total + 1})
+            else:
+                ref.set({"data": str(hoje), "total": 1})
+        else:
+            ref.set({"data": str(hoje), "total": 1})
+
+        # === Código mock por enquanto ===
+        code = "123456"
+
+        print(f"✅ Código gerado para {email_usuario}: {code}")
+        return jsonify({"ok": True, "code": code}), 200
 
     except Exception as e:
-        print("❌ ERRO AO LER CÓDIGO:")
+        print("❌ ERRO AO GERAR CÓDIGO:")
         print(traceback.format_exc())
         return jsonify({"ok": False, "error": str(e)}), 500
 
