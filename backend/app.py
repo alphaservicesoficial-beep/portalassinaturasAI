@@ -248,17 +248,19 @@ def kirvano_webhook():
 
 @app.route("/gerar-codigo", methods=["POST", "OPTIONS"])
 def gerar_codigo():
-    # 1️⃣ Preflight: navegador testa antes do POST real
+    origin = request.headers.get("Origin")
+
+    # 🔹 Trata o preflight (OPTIONS)
     if request.method == "OPTIONS":
-        resp = make_response("", 204)  # 204 = no content
-        origin = request.headers.get("Origin")
+        resp = make_response("", 204)
         if origin in ALLOWED_ORIGINS:
             resp.headers["Access-Control-Allow-Origin"] = origin
         resp.headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization"
         resp.headers["Access-Control-Allow-Methods"] = "POST, OPTIONS"
+        resp.headers["Access-Control-Max-Age"] = "3600"
         return resp
 
-    # 2️⃣ POST normal (a partir daqui é o código de verdade)
+    # 🔹 POST real
     try:
         data = request.get_json(silent=True) or {}
         email_usuario = data.get("email")
@@ -285,7 +287,7 @@ def gerar_codigo():
         else:
             ref.set({"data": str(hoje), "total": 1})
 
-        # --- Leitura do e-mail IMAP ---
+        # --- Leitura do último e-mail via IMAP ---
         mail = imaplib.IMAP4_SSL(IMAP_SERVER, IMAP_PORT)
         mail.login(EMAIL_USER, EMAIL_PASS)
         mail.select("inbox")
@@ -314,6 +316,7 @@ def gerar_codigo():
         if not code:
             return jsonify({"ok": False, "error": "Código não encontrado"}), 404
 
+        print(f"✅ Código encontrado e retornado: {code}")
         return jsonify({"ok": True, "code": code}), 200
 
     except Exception as e:
