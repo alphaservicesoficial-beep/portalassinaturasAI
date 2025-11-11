@@ -10,7 +10,7 @@ import email
 import re
 from email.message import EmailMessage
 from datetime import datetime, timezone
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, send_from_directory
 from flask_cors import CORS
 from dotenv import load_dotenv
 from email_validator import validate_email, EmailNotValidError
@@ -35,14 +35,14 @@ if not firebase_admin._apps:
 
 db = firestore.client()
 
-# --- Configurações de e-mail (envio e leitura) ---
+# --- Configurações de e-mail ---
 SMTP_HOST = os.getenv("SMTP_HOST", "smtp.gmail.com")
 SMTP_PORT = int(os.getenv("SMTP_PORT", "587"))
 EMAIL_USER = os.getenv("EMAIL_USER")
 EMAIL_PASS = os.getenv("EMAIL_PASS")
 SENDER_NAME = os.getenv("SENDER_NAME", "Kirvano")
 
-# Configuração padrão do IMAP para leitura do Gmail
+# --- IMAP (leitura de e-mails) ---
 IMAP_SERVER = os.getenv("IMAP_SERVER", "imap.gmail.com")
 IMAP_PORT = int(os.getenv("IMAP_PORT", "993"))
 
@@ -50,76 +50,74 @@ IMAP_PORT = int(os.getenv("IMAP_PORT", "993"))
 app = Flask(__name__)
 CORS(app, origins=["http://localhost:5173", "https://seusite.com"])
 
+# --- Servir arquivos da pasta /public ---
+@app.route('/public/<path:filename>')
+def serve_public(filename):
+    public_path = os.path.join(os.path.dirname(__file__), '../public')
+    return send_from_directory(public_path, filename)
+
 # --- Funções auxiliares ---
 
 def gerar_senha(tamanho: int = 10) -> str:
     caracteres = string.ascii_letters + string.digits
     return "".join(secrets.choice(caracteres) for _ in range(tamanho))
 
+
 def enviar_email_credenciais(destinatario: str, senha: str):
     assunto = "Acesso liberado ao Portal de Ferramentas"
 
-    # Corpo do e-mail com o logo embutido
     corpo_html = f"""
-<div style="background-color:#0e1726; padding:40px; font-family:Arial, Helvetica, sans-serif; color:#ffffff;">
-  <div style="max-width:600px; margin:auto; background-color:#141e30; border-radius:16px; overflow:hidden; box-shadow:0 0 25px rgba(0,255,255,0.2);">
-    
-    <!-- Cabeçalho -->
-    <div style="background:linear-gradient(90deg, #00ffff, #0077ff); padding:20px 0; text-align:center;">
-  <div style="display:flex; align-items:center; justify-content:center; gap:12px;">
-    <img src="cid:kirvano_logo" alt="Logo Kirvano" width="50" style="border-radius:10px;">
-    <h1 style="margin:0; font-size:18px; color:#fff; letter-spacing:0.5px; font-weight:700;">
-      Portal de Ferramentas Dominando Animações
-    </h1>
-  </div>
-</div>
+    <div style="background-color:#0e1726; padding:40px; font-family:Arial, Helvetica, sans-serif; color:#ffffff;">
+      <div style="max-width:600px; margin:auto; background-color:#141e30; border-radius:16px; overflow:hidden; box-shadow:0 0 25px rgba(0,255,255,0.2);">
+        <div style="background:linear-gradient(90deg, #00ffff, #0077ff); padding:20px 0;">
+          <div style="display:flex; align-items:center; justify-content:center; gap:12px;">
+            <img src="cid:kirvano_logo" alt="Logo Kirvano" width="50" style="border-radius:10px;">
+            <h1 style="margin:0; font-size:18px; color:#fff; letter-spacing:0.5px; font-weight:700;">
+              Portal de Ferramentas Dominando Animações
+            </h1>
+          </div>
+        </div>
 
+        <div style="padding:30px; text-align:center;">
+          <h2 style="color:#00ffff; margin-bottom:10px;">Sua conta foi criada com sucesso!</h2>
+          <p style="font-size:15px; color:#cbd5e1; margin-bottom:25px;">
+            Agora você pode acessar o portal e explorar todas as ferramentas disponíveis.
+          </p>
 
-    <!-- Corpo -->
-    <div style="padding:30px; text-align:center;">
-      <h2 style="color:#00ffff; margin-bottom:10px;">Sua conta foi criada com sucesso!</h2>
-      <p style="font-size:15px; color:#cbd5e1; margin-bottom:25px;">
-        Agora você pode acessar o portal e explorar todas as ferramentas disponíveis.
-      </p>
+          <div style="background-color:#1e293b; border:1px solid rgba(0,255,255,0.3); border-radius:12px; padding:20px; margin:25px 0;">
+            <p style="font-size:15px; margin:6px 0;"><strong>E-mail:</strong> {destinatario}</p>
+            <p style="font-size:15px; margin:6px 0;"><strong>Senha:</strong> {senha}</p>
+          </div>
 
-      <div style="background-color:#1e293b; border:1px solid rgba(0,255,255,0.3); border-radius:12px; padding:20px; margin:25px 0;">
-        <p style="font-size:15px; margin:6px 0;"><strong>E-mail:</strong> {destinatario}</p>
-        <p style="font-size:15px; margin:6px 0;"><strong>Senha:</strong> {senha}</p>
+          <a href="https://aiportalacesso.netlify.app/"
+            style="background:linear-gradient(90deg,#00ffff,#0077ff); padding:12px 30px; color:#0e1726; text-decoration:none;
+                   font-weight:bold; border-radius:10px; display:inline-block; margin-top:10px;">
+            Acessar o Portal
+          </a>
+
+          <p style="margin-top:30px; color:#94a3b8; font-size:14px; line-height:1.6;">
+            Recomendamos alterar sua senha após o primeiro login.<br>
+            Caso tenha dúvidas, entre em contato com nosso suporte.
+          </p>
+        </div>
+
+        <div style="background-color:#0f172a; text-align:center; padding:14px; color:#64748b; font-size:13px;
+                    border-top:1px solid rgba(0,255,255,0.1);">
+          &copy; {datetime.now().year} Dominando Animações • Todos os direitos reservados
+        </div>
+
       </div>
-
-      <a href="https://portal.kirvano.com"
-        style="background:linear-gradient(90deg,#00ffff,#0077ff); padding:12px 30px; color:#0e1726; text-decoration:none;
-               font-weight:bold; border-radius:10px; display:inline-block; margin-top:10px;">
-        Acessar o Portal
-      </a>
-
-      <p style="margin-top:30px; color:#94a3b8; font-size:14px; line-height:1.6;">
-        Recomendamos alterar sua senha após o primeiro login.<br>
-        Caso tenha dúvidas, entre em contato com nosso suporte.
-      </p>
     </div>
+    """
 
-    <!-- Rodapé -->
-    <div style="background-color:#0f172a; text-align:center; padding:14px; color:#64748b; font-size:13px;
-                border-top:1px solid rgba(0,255,255,0.1);">
-      &copy; {datetime.now().year} Dominando Animações • Todos os direitos reservados
-    </div>
-
-  </div>
-</div>
-"""
-
-
-    # --- Monta o e-mail com o logo embutido ---
     msg = EmailMessage()
     msg["Subject"] = assunto
     msg["From"] = f"{SENDER_NAME} <{EMAIL_USER}>"
     msg["To"] = destinatario
     msg.add_alternative(corpo_html, subtype="html")
 
-    # Caminho da logo dentro da pasta public
+    # Caminho da logo
     logo_path = os.path.join(os.path.dirname(__file__), "../public/marca.png")
-
     if os.path.exists(logo_path):
         with open(logo_path, "rb") as img:
             msg.get_payload()[0].add_related(
@@ -132,7 +130,6 @@ def enviar_email_credenciais(destinatario: str, senha: str):
     else:
         print("⚠️ Logo não encontrada em:", logo_path)
 
-    # --- Envia ---
     contexto = ssl.create_default_context()
     with smtplib.SMTP(SMTP_HOST, SMTP_PORT) as server:
         server.starttls(context=contexto)
@@ -164,7 +161,7 @@ def criar_usuario_e_enviar(email: str):
     enviar_email_credenciais(email_validado, senha)
     return {"ok": True, "uid": user.uid}
 
-# --- Webhook da Kirvano ---
+
 @app.post("/webhook/kirvano")
 def kirvano_webhook():
     data = request.get_json(silent=True) or {}
@@ -209,7 +206,7 @@ def kirvano_webhook():
         print(traceback.format_exc())
         return jsonify({"ok": False, "error": str(e)}), 500
 
-# --- Rota: leitura do último código de autenticação do Gmail ---
+
 @app.get("/gerar-codigo")
 def gerar_codigo():
     try:
@@ -247,6 +244,51 @@ def gerar_codigo():
         print("❌ ERRO AO LER CÓDIGO:")
         print(traceback.format_exc())
         return jsonify({"ok": False, "error": str(e)}), 500
+
+
+@app.route("/preview-email")
+def preview_email():
+    destinatario = request.args.get("email", "teste@exemplo.com")
+    senha = request.args.get("senha", "Senha123!")
+
+    corpo_html = f"""
+    <div style="background-color:#0e1726; padding:40px; font-family:Arial, Helvetica, sans-serif; color:#ffffff;">
+      <div style="max-width:600px; margin:auto; background-color:#141e30; border-radius:16px; overflow:hidden; box-shadow:0 0 25px rgba(0,255,255,0.2);">
+        <div style="background:linear-gradient(90deg, #00ffff, #0077ff); padding:20px 30px; display:flex; align-items:center; gap:15px;">
+          <img src="/public/marca.png" alt="Logo Kirvano" width="50" style="border-radius:10px;">
+          <h1 style="margin:0; font-size:18px; color:#fff; letter-spacing:1px;">Portal de Ferramentas Dominando Animações</h1>
+        </div>
+
+        <div style="padding:30px; text-align:center;">
+          <h2 style="color:#00ffff;">Sua conta foi criada com sucesso!</h2>
+          <p style="font-size:16px; color:#cbd5e1;">Agora você pode acessar o portal e explorar todas as ferramentas disponíveis.</p>
+
+          <div style="background-color:#1e293b; border:1px solid rgba(0,255,255,0.3); border-radius:12px; padding:20px; margin:25px 0;">
+            <p style="font-size:16px; margin:6px 0;"><strong>E-mail:</strong> {destinatario}</p>
+            <p style="font-size:16px; margin:6px 0;"><strong>Senha:</strong> {senha}</p>
+          </div>
+
+          <a href="https://portal.kirvano.com"
+            style="background:linear-gradient(90deg,#00ffff,#0077ff); padding:12px 30px; color:#0e1726; text-decoration:none;
+                   font-weight:bold; border-radius:10px; display:inline-block; margin-top:10px;">
+            Acessar o Portal
+          </a>
+
+          <p style="margin-top:30px; color:#94a3b8; font-size:14px;">
+            Recomendamos alterar sua senha após o primeiro login.<br>
+            Caso tenha dúvidas, entre em contato com nosso suporte.
+          </p>
+        </div>
+
+        <footer style="background-color:#0f172a; text-align:center; padding:14px; color:#64748b; font-size:13px; border-top:1px solid rgba(0,255,255,0.1);">
+          &copy; {datetime.now().year} Dominando Animações • Todos os direitos reservados
+        </footer>
+      </div>
+    </div>
+    """
+
+    return corpo_html
+
 
 # --- Inicialização ---
 if __name__ == "__main__":
