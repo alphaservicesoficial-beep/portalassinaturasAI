@@ -67,47 +67,61 @@ def enviar_email_credenciais(destinatario: str, senha: str):
     assunto = "Acesso liberado ao Portal de Ferramentas"
 
     corpo_html = f"""
-    <div style="background-color:#0e1726; padding:40px; font-family:Arial, Helvetica, sans-serif; color:#ffffff;">
-      <div style="max-width:600px; margin:auto; background-color:#141e30; border-radius:16px; overflow:hidden; box-shadow:0 0 25px rgba(0,255,255,0.2);">
-        <div style="background:linear-gradient(90deg, #00ffff, #0077ff); padding:20px 0;">
-          <div style="display:flex; align-items:center; justify-content:center; gap:12px;">
-            <img src="cid:kirvano_logo" alt="Logo Kirvano" width="60" style="border-radius:10px;">
-            <h1 style="margin:0; font-size:18px; color:#fff; letter-spacing:0.5px; font-weight:700;">
-             Dominando Animações
-            </h1>
-          </div>
-        </div>
-
-        <div style="padding:30px; text-align:center;">
-          <h2 style="color:#00ffff; margin-bottom:10px;">Sua conta foi criada com sucesso!</h2>
-          <p style="font-size:15px; color:#cbd5e1; margin-bottom:25px;">
-            Agora você pode acessar o portal e explorar todas as ferramentas disponíveis.
-          </p>
-
-          <div style="background-color:#1e293b; border:1px solid rgba(0,255,255,0.3); border-radius:12px; padding:20px; margin:25px 0;">
-            <p style="font-size:15px; margin:6px 0;"><strong>E-mail:</strong> {destinatario}</p>
-            <p style="font-size:15px; margin:6px 0;"><strong>Senha:</strong> {senha}</p>
-          </div>
-
-          <a href="https://aiportalacesso.netlify.app/"
-            style="background:linear-gradient(90deg,#00ffff,#0077ff); padding:12px 30px; color:#0e1726; text-decoration:none;
-                   font-weight:bold; border-radius:10px; display:inline-block; margin-top:10px;">
-            Acessar o Portal
-          </a>
-
-          <p style="margin-top:30px; color:#94a3b8; font-size:14px; line-height:1.6;">
-            Recomendamos alterar sua senha após o primeiro login.<br>
-            Caso tenha dúvidas, entre em contato com nosso suporte.
-          </p>
-        </div>
-
-        <div style="background-color:#0f172a; text-align:center; padding:14px; color:#64748b; font-size:13px;
-                    border-top:1px solid rgba(0,255,255,0.1);">
-          &copy; {datetime.now().year} Dominando Animações • Todos os direitos reservados
-        </div>
-
-      </div>
+  <div style="background-color:#0e1726; padding:40px; font-family:Arial, Helvetica, sans-serif; color:#ffffff;">
+  <div style="max-width:600px; margin:auto; background-color:#141e30; border-radius:16px;
+              box-shadow:0 0 25px rgba(0,255,255,0.2); overflow:visible;">
+    
+    <!-- Cabeçalho -->
+    <div style="background:linear-gradient(90deg, #00ffff, #0077ff); 
+                border-top-left-radius:16px; border-top-right-radius:16px; padding:20px 0; text-align:center;">
+      <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
+        <tr>
+          <td align="center" valign="middle">
+            <table role="presentation" cellspacing="0" cellpadding="0" border="0">
+              <tr>
+                <td style="padding-right:10px;">
+                  <img src="/marca.png" alt="Logo Kirvano" width="50" style="border-radius:10px;">
+                </td>
+                <td>
+                  <h1 style="margin:0; font-size:20px; color:#fff; font-weight:800; font-family:Arial,Helvetica,sans-serif;">
+                    Dominando Animações
+                  </h1>
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+      </table>
     </div>
+
+    <!-- Corpo -->
+    <div style="padding:30px; text-align:center;">
+      <h2 style="color:#00ffff;">Sua conta foi criada com sucesso!</h2>
+      <p style="font-size:16px; color:#cbd5e1;">Agora você pode acessar o portal e explorar todas as ferramentas disponíveis.</p>
+      <div style="background-color:#1e293b; border:1px solid rgba(0,255,255,0.3); border-radius:12px; padding:20px; margin:25px 0;">
+        <p style="font-size:16px; margin:6px 0;"><strong>E-mail:</strong> destinatario@exemplo.com</p>
+        <p style="font-size:16px; margin:6px 0;"><strong>Senha:</strong> SENHA123</p>
+      </div>
+      <a href="https://portal.kirvano.com"
+         style="background:linear-gradient(90deg,#00ffff,#0077ff); padding:12px 30px; color:#0e1726;
+                text-decoration:none; font-weight:bold; border-radius:10px; display:inline-block;">
+        Acessar o Portal
+      </a>
+      <p style="margin-top:30px; color:#94a3b8; font-size:14px;">
+        Recomendamos alterar sua senha após o primeiro login.<br>
+        Caso tenha dúvidas, entre em contato com nosso suporte.
+      </p>
+    </div>
+
+    <!-- Rodapé -->
+    <div style="background-color:#0f172a; text-align:center; padding:14px; color:#64748b; font-size:13px;
+                border-top:1px solid rgba(0,255,255,0.1); border-bottom-left-radius:16px; border-bottom-right-radius:16px;">
+      &copy; 2025 Dominando Animações • Todos os direitos reservados
+    </div>
+
+  </div>
+</div>
+
     """
 
     msg = EmailMessage()
