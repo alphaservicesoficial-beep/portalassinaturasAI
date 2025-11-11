@@ -1,5 +1,7 @@
 ﻿import { useMemo, useState } from "react";
 import Header from "../components/Header.jsx";
+import { useEffect, useRef } from "react";
+
 
 const tutorialConfigs = {
   default: {
@@ -97,7 +99,8 @@ function AccessGuidePage({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [timer, setTimer] = useState(0);
-  
+
+const timerRef = useRef(null); 
 
 const handleGerarCodigo = async () => {
   setLoading(true);
@@ -107,14 +110,29 @@ const handleGerarCodigo = async () => {
 
   try {
     const response = await fetch(
-      `https://kirvano-backend-warn.onrender.com/gerar-codigo?email=${encodeURIComponent(credentials.emailValue)}`
+      "https://kirvano-backend-warn.onrender.com/gerar-codigo",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: credentials.emailValue }),
+      }
     );
+
     const data = await response.json();
 
     if (data.ok && data.code) {
       setCodigo(data.code);
       setTimer(30);
-      // ...
+      const interval = setInterval(() => {
+        setTimer((prev) => {
+          if (prev <= 1) {
+            clearInterval(interval);
+            setCodigo(null);
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
     } else {
       setError(data.error || "Não foi possível gerar o código.");
     }
@@ -127,6 +145,11 @@ const handleGerarCodigo = async () => {
 };
 
 
+useEffect(() => {
+  return () => {
+    if (timerRef.current) clearInterval(timerRef.current);
+  };
+}, []);
 
   return (
     <div className={pageClassName}>

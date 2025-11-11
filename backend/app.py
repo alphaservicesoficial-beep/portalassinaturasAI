@@ -67,7 +67,7 @@ def enviar_email_credenciais(destinatario: str, senha: str):
     assunto = "Acesso liberado ao Portal de Ferramentas"
 
     corpo_html = f"""
-  <div style="background-color:#0e1726; padding:40px; font-family:Arial, Helvetica, sans-serif; color:#ffffff;">
+<div style="background-color:#0e1726; padding:40px; font-family:Arial, Helvetica, sans-serif; color:#ffffff;">
   <div style="max-width:600px; margin:auto; background-color:#141e30; border-radius:16px;
               box-shadow:0 0 25px rgba(0,255,255,0.2); overflow:visible;">
     
@@ -80,8 +80,7 @@ def enviar_email_credenciais(destinatario: str, senha: str):
             <table role="presentation" cellspacing="0" cellpadding="0" border="0">
               <tr>
                 <td style="padding-right:10px;">
-                  <img src="/public/marca.png"  alt="Logo Kirvano" width="50" style="border-radius:10px;">
-
+                  <img src="cid:kirvano_logo" alt="Logo Kirvano" width="50" style="border-radius:10px;">
                 </td>
                 <td>
                   <h1 style="margin:0; font-size:20px; color:#fff; font-weight:800; font-family:Arial,Helvetica,sans-serif;">
@@ -100,8 +99,8 @@ def enviar_email_credenciais(destinatario: str, senha: str):
       <h2 style="color:#00ffff;">Sua conta foi criada com sucesso!</h2>
       <p style="font-size:16px; color:#cbd5e1;">Agora você pode acessar o portal e explorar todas as ferramentas disponíveis.</p>
       <div style="background-color:#1e293b; border:1px solid rgba(0,255,255,0.3); border-radius:12px; padding:20px; margin:25px 0;">
-        <p style="font-size:16px; margin:6px 0;"><strong>E-mail:</strong> destinatario@exemplo.com</p>
-        <p style="font-size:16px; margin:6px 0;"><strong>Senha:</strong> SENHA123</p>
+        <p style="font-size:16px; margin:6px 0;"><strong>E-mail:</strong> {destinatario}</p>
+        <p style="font-size:16px; margin:6px 0;"><strong>Senha:</strong> {senha}</p>
       </div>
       <a href="https://portal.kirvano.com"
          style="background:linear-gradient(90deg,#00ffff,#0077ff); padding:12px 30px; color:#0e1726;
@@ -117,13 +116,12 @@ def enviar_email_credenciais(destinatario: str, senha: str):
     <!-- Rodapé -->
     <div style="background-color:#0f172a; text-align:center; padding:14px; color:#64748b; font-size:13px;
                 border-top:1px solid rgba(0,255,255,0.1); border-bottom-left-radius:16px; border-bottom-right-radius:16px;">
-      &copy; 2025 Dominando Animações • Todos os direitos reservados
+      &copy; {datetime.now().year} Dominando Animações • Todos os direitos reservados
     </div>
 
   </div>
 </div>
-
-    """
+"""
 
     msg = EmailMessage()
     msg["Subject"] = assunto
@@ -131,8 +129,8 @@ def enviar_email_credenciais(destinatario: str, senha: str):
     msg["To"] = destinatario
     msg.add_alternative(corpo_html, subtype="html")
 
-    # Caminho da logo
     logo_path = os.path.join(os.path.dirname(__file__), "../public/marca.png")
+
     if os.path.exists(logo_path):
         with open(logo_path, "rb") as img:
             msg.get_payload()[0].add_related(
@@ -222,23 +220,35 @@ def kirvano_webhook():
         return jsonify({"ok": False, "error": str(e)}), 500
 
 
-@app.get("/gerar-codigo")
+@app.post("/gerar-codigo")
 def gerar_codigo():
     try:
-        email_usuario = request.args.get("email")
+        data = request.get_json(silent=True) or {}
+        email_usuario = data.get("email")
+
         if not email_usuario:
             return jsonify({"ok": False, "error": "E-mail do usuário não informado"}), 400
 
+        # Verifica se já gerou código hoje
         hoje = datetime.now(timezone.utc).date()
+        ref = db.collection("codigos_gerados").document(email_usuario)
+        doc = ref.get()
 
-        # Busca no Firestore quantas vezes o usuário gerou hoje
-        registros_ref = db.collection("codigo_logs").where("email", "==", email_usuario).where("data", "==", str(hoje))
-        registros = list(registros_ref.stream())
+        if doc.exists:
+            dados = doc.to_dict()
+            ultima_data = dados.get("data")
+            total = dados.get("total", 0)
 
-        if len(registros) >= 2:
-            return jsonify({"ok": False, "error": "Limite diário de 2 códigos atingido"}), 403
+            if ultima_data == str(hoje) and total >= 2:
+                return jsonify({"ok": False, "error": "Limite diário de 2 códigos atingido"}), 403
+            elif ultima_data == str(hoje):
+                ref.update({"total": total + 1})
+            else:
+                ref.set({"data": str(hoje), "total": 1})
+        else:
+            ref.set({"data": str(hoje), "total": 1})
 
-        # Conecta ao e-mail e busca o código
+        # AQUI você mantém o código de leitura do Gmail:
         mail = imaplib.IMAP4_SSL(IMAP_SERVER, IMAP_PORT)
         mail.login(EMAIL_USER, EMAIL_PASS)
         mail.select("inbox")
@@ -266,13 +276,6 @@ def gerar_codigo():
 
         if not code:
             return jsonify({"ok": False, "error": "Código não encontrado"}), 404
-
-        # Registra a geração do código
-        db.collection("codigo_logs").add({
-            "email": email_usuario,
-            "data": str(hoje),
-            "gerado_em": datetime.now(timezone.utc).isoformat(),
-        })
 
         return jsonify({"ok": True, "code": code}), 200
 
