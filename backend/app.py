@@ -50,32 +50,25 @@ IMAP_PORT = int(os.getenv("IMAP_PORT", "993"))
 app = Flask(__name__)
 
 # Domínios do seu front
+# --- CORS robusto ---
 ALLOWED_ORIGINS = [
     "http://localhost:5173",
     "https://aiportalacesso.netlify.app",
+    "https://www.aiportalacesso.netlify.app",
 ]
 
-# CORS para todas as rotas, permitindo os domínios acima
-CORS(
-    app,
-    resources={r"/*": {"origins": ALLOWED_ORIGINS}},
-    supports_credentials=True
-)
-
-# Garante headers de CORS em TODAS as respostas (inclusive preflight)
 @app.after_request
 def after_request(response):
-    origin = request.headers.get("Origin")
-    if origin in ALLOWED_ORIGINS:
-        response.headers["Access-Control-Allow-Origin"]  = origin
-    else:
-        # se não for um origin permitido, não injeta o header (evita barulho)
-        pass
-
-    response.headers["Vary"] = "Origin"
+    origin = request.headers.get("Origin", "")
+    # Verifica se algum domínio permitido está contido na origem
+    if any(allowed in origin for allowed in ALLOWED_ORIGINS):
+        response.headers["Access-Control-Allow-Origin"] = origin
     response.headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization"
     response.headers["Access-Control-Allow-Methods"] = "GET, POST, OPTIONS"
+    response.headers["Access-Control-Allow-Credentials"] = "true"
+    response.headers["Vary"] = "Origin"
     return response
+
 # --- Servir arquivos da pasta /public ---
 @app.route('/public/<path:filename>')
 def serve_public(filename):
@@ -248,15 +241,16 @@ def kirvano_webhook():
 
 @app.route("/gerar-codigo", methods=["POST", "OPTIONS"])
 def gerar_codigo():
-    origin = request.headers.get("Origin")
+    origin = request.headers.get("Origin", "")
 
-    # 🔹 Trata o preflight (OPTIONS)
+    # 🔹 Preflight (OPTIONS)
     if request.method == "OPTIONS":
         resp = make_response("", 204)
-        if origin in ALLOWED_ORIGINS:
+        if any(allowed in origin for allowed in ALLOWED_ORIGINS):
             resp.headers["Access-Control-Allow-Origin"] = origin
         resp.headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization"
         resp.headers["Access-Control-Allow-Methods"] = "POST, OPTIONS"
+        resp.headers["Access-Control-Allow-Credentials"] = "true"
         resp.headers["Access-Control-Max-Age"] = "3600"
         return resp
 
@@ -268,61 +262,15 @@ def gerar_codigo():
         if not email_usuario:
             return jsonify({"ok": False, "error": "E-mail do usuário não informado"}), 400
 
-        # --- Limite de 2 códigos por dia ---
-        hoje = datetime.now(timezone.utc).date()
-        ref = db.collection("codigos_gerados").document(email_usuario)
-        doc = ref.get()
-
-        if doc.exists:
-            dados = doc.to_dict()
-            ultima_data = dados.get("data")
-            total = dados.get("total", 0)
-
-            if ultima_data == str(hoje) and total >= 2:
-                return jsonify({"ok": False, "error": "Limite diário de 2 códigos atingido"}), 403
-            elif ultima_data == str(hoje):
-                ref.update({"total": total + 1})
-            else:
-                ref.set({"data": str(hoje), "total": 1})
-        else:
-            ref.set({"data": str(hoje), "total": 1})
-
-        # --- Leitura do último e-mail via IMAP ---
-        mail = imaplib.IMAP4_SSL(IMAP_SERVER, IMAP_PORT)
-        mail.login(EMAIL_USER, EMAIL_PASS)
-        mail.select("inbox")
-
-        result, data = mail.search(None, "ALL")
-        mail_ids = data[0].split()
-        if not mail_ids:
-            return jsonify({"ok": False, "error": "Nenhum e-mail encontrado"}), 404
-
-        latest_email_id = mail_ids[-1]
-        result, data = mail.fetch(latest_email_id, "(RFC822)")
-        raw_email = data[0][1]
-        msg = email.message_from_bytes(raw_email)
-
-        body = ""
-        if msg.is_multipart():
-            for part in msg.walk():
-                if part.get_content_type() == "text/plain":
-                    body += part.get_payload(decode=True).decode(errors="ignore")
-        else:
-            body = msg.get_payload(decode=True).decode(errors="ignore")
-
-        match = re.search(r"\b\d{6}\b", body)
-        code = match.group() if match else None
-
-        if not code:
-            return jsonify({"ok": False, "error": "Código não encontrado"}), 404
-
-        print(f"✅ Código encontrado e retornado: {code}")
-        return jsonify({"ok": True, "code": code}), 200
+        # --- MOCK SIMPLES PRA TESTAR ---
+        print(f"✅ Requisição recebida de: {email_usuario}")
+        return jsonify({"ok": True, "code": "123456"}), 200
 
     except Exception as e:
         print("❌ ERRO AO LER CÓDIGO:")
         print(traceback.format_exc())
         return jsonify({"ok": False, "error": str(e)}), 500
+
 
 
 @app.route("/preview-email")
