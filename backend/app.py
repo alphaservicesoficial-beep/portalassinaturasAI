@@ -64,8 +64,8 @@ def enviar_email_credenciais(destinatario: str, senha: str):
     <div style="background-color:#0e1726; padding:40px; font-family:Arial, Helvetica, sans-serif; color:#ffffff;">
       <div style="max-width:600px; margin:auto; background-color:#141e30; border-radius:16px; overflow:hidden; box-shadow:0 0 25px rgba(0,255,255,0.2);">
         <div style="background:linear-gradient(90deg, #00ffff, #0077ff); padding:20px 0; text-align:center;">
-          <img src="cid:kirvano_logo" alt="Logo Kirvano" width="120" style="margin-bottom:10px; border-radius:12px;">
-          <h1 style="margin:0; font-size:24px; color:#fff; letter-spacing:1px;">Portal de Ferramentas Dominando Animações/h1>
+          <img src="cid:kirvano_logo" alt="Logo Kirvano" width="90" style="margin-bottom:10px; border-radius:12px;">
+          <h1 style="margin:0; font-size:16px; color:#fff; letter-spacing:1px;">Portal de Ferramentas Dominando Animações</h1>
         </div>
 
         <div style="padding:30px; text-align:center;">
