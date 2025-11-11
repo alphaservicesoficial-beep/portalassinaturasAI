@@ -48,7 +48,7 @@ IMAP_PORT = int(os.getenv("IMAP_PORT", "993"))
 
 # --- Flask App ---
 app = Flask(__name__)
-CORS(app, origins=["http://localhost:5173", "https://seusite.com"])
+CORS(app, origins=["http://localhost:5173", "https://aiportalacesso.netlify.app"])
 
 # --- Servir arquivos da pasta /public ---
 @app.route('/public/<path:filename>')
