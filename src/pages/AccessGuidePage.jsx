@@ -116,19 +116,31 @@ const handleGerarCodigo = async () => {
       body: JSON.stringify({ email: credentials.emailValue }),
     });
 
-    if (!response.ok) {
-      // evita tentar .json() em HTML de erro
+    // Se o status for 403, trata de forma amigável
+    if (response.status === 403) {
       const text = await response.text();
-      throw new Error(`HTTP ${response.status} - ${text}`);
+      let msg = "Limite de 2 códigos atingido. Tente novamente amanhã.";
+      try {
+        const json = JSON.parse(text);
+        msg = json.error || msg;
+      } catch (_) {}
+      setError(msg);
+      return; // não segue para o resto
     }
 
-    const data = await response.json();
+    if (!response.ok) {
+      const text = await response.text();
+      console.warn("Resposta não OK:", response.status, text);
+      setError("Erro ao gerar código. Tente novamente mais tarde.");
+      return;
+    }
 
+    // Se deu tudo certo
+    const data = await response.json();
     if (data.ok && data.code) {
       setCodigo(data.code);
       setTimer(30);
 
-      // timer correto com ref (evita múltiplos intervals)
       if (timerRef.current) clearInterval(timerRef.current);
       timerRef.current = setInterval(() => {
         setTimer((prev) => {
@@ -141,17 +153,17 @@ const handleGerarCodigo = async () => {
           return prev - 1;
         });
       }, 1000);
-
     } else {
       setError(data.error || "Não foi possível gerar o código.");
     }
   } catch (err) {
-    console.error(err);
+    console.error("Erro de rede:", err);
     setError("Erro ao conectar ao servidor.");
   } finally {
     setLoading(false);
   }
 };
+
 
 useEffect(() => {
   return () => {
@@ -314,7 +326,8 @@ useEffect(() => {
     )}
   </div>
 
-  {/* Botão */}
+ 
+   {/* Botão */}
   <button
     onClick={handleGerarCodigo}
     className="button secondary-button access-card-action"
@@ -323,12 +336,11 @@ useEffect(() => {
     {loading ? "Buscando..." : generator.actionLabel}
   </button>
 
-  {/* Erro */}
-  {error && <p className="text-red-500 mt-2">{error}</p>}
+  {/* Mensagem amigável de limite ou erro */}
+  {/* Erro */} {error && <p className="text-red-500 mt-2">{error}</p>} {generator.note && ( <p className="access-card-note">{generator.note}</p> )}
 
-  {generator.note && (
-    <p className="access-card-note">{generator.note}</p>
-  )}
+
+
 </article>
 
 
