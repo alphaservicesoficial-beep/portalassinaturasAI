@@ -57,31 +57,56 @@ def gerar_senha(tamanho: int = 10) -> str:
     return "".join(secrets.choice(caracteres) for _ in range(tamanho))
 
 def enviar_email_credenciais(destinatario: str, senha: str):
-    assunto = "Acesso à sua conta Kirvano"
-    corpo = f"""Olá!
+    assunto = "Acesso liberado ao Portal de Ferramentas"
 
-Sua conta foi criada com sucesso.
+    corpo_html = f"""
+    <div style="background-color:#0e1726; padding:40px; font-family:Arial, Helvetica, sans-serif; color:#ffffff;">
+      <div style="max-width:600px; margin:auto; background-color:#141e30; border-radius:16px; overflow:hidden; box-shadow:0 0 25px rgba(0,255,255,0.2);">
+        <div style="background:linear-gradient(90deg, #00ffff, #0077ff); padding:20px 0; text-align:center;">
+          <img src="https://seusite.com/static/logo.png" alt="Logo Kirvano" width="140" style="margin-bottom:10px;">
+          <h1 style="margin:0; font-size:24px; color:#fff; letter-spacing:1px;">Portal de Ferramentas Kirvano</h1>
+        </div>
 
-E-mail: {destinatario}
-Senha:  {senha}
+        <div style="padding:30px; text-align:center;">
+          <h2 style="color:#00ffff;">Sua conta foi criada com sucesso!</h2>
+          <p style="font-size:16px; color:#cbd5e1;">Agora você pode acessar o portal e explorar todas as ferramentas disponíveis.</p>
 
-Recomendamos alterar sua senha após o primeiro login.
+          <div style="background-color:#1e293b; border:1px solid rgba(0,255,255,0.3); border-radius:12px; padding:20px; margin:25px 0;">
+            <p style="font-size:16px; margin:6px 0;"><strong>E-mail:</strong> {destinatario}</p>
+            <p style="font-size:16px; margin:6px 0;"><strong>Senha:</strong> {senha}</p>
+          </div>
 
-Atenciosamente,
-{SENDER_NAME}
-"""
+          <a href="https://portal.kirvano.com" 
+            style="background:linear-gradient(90deg,#00ffff,#0077ff); padding:12px 30px; color:#0e1726; text-decoration:none; 
+                   font-weight:bold; border-radius:10px; display:inline-block; margin-top:10px;">
+            Acessar o Portal
+          </a>
+
+          <p style="margin-top:30px; color:#94a3b8; font-size:14px;">
+            Recomendamos alterar sua senha após o primeiro login.<br>
+            Caso tenha dúvidas, entre em contato com nosso suporte.
+          </p>
+        </div>
+
+        <footer style="background-color:#0f172a; text-align:center; padding:12px; color:#64748b; font-size:13px;">
+          &copy; {datetime.now().year} Dominando Animações • Todos os direitos reservados
+        </footer>
+      </div>
+    </div>
+    """
 
     msg = EmailMessage()
     msg["Subject"] = assunto
     msg["From"] = f"{SENDER_NAME} <{EMAIL_USER}>"
     msg["To"] = destinatario
-    msg.set_content(corpo)
+    msg.add_alternative(corpo_html, subtype="html")
 
     contexto = ssl.create_default_context()
     with smtplib.SMTP(SMTP_HOST, SMTP_PORT) as server:
         server.starttls(context=contexto)
         server.login(EMAIL_USER, EMAIL_PASS)
         server.send_message(msg)
+
 
 def criar_usuario_e_enviar(email: str):
     try:

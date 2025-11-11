@@ -92,23 +92,39 @@ function AccessGuidePage({
     ? "access-page access-page--animate"
     : "access-page";
 
-  // --- estados do código ---
+    // --- Estados do código e timer ---
   const [codigo, setCodigo] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [timer, setTimer] = useState(0);
 
   const handleGerarCodigo = async () => {
     setLoading(true);
     setError(null);
     setCodigo(null);
+    setTimer(0);
 
     try {
       const response = await fetch(
         "https://kirvano-backend-warn.onrender.com/gerar-codigo"
       );
       const data = await response.json();
+
       if (data.ok && data.code) {
         setCodigo(data.code);
+        setTimer(30);
+
+        // ⏳ Inicia a contagem regressiva
+        const interval = setInterval(() => {
+          setTimer((prev) => {
+            if (prev <= 1) {
+              clearInterval(interval);
+              setCodigo(null);
+              return 0;
+            }
+            return prev - 1;
+          });
+        }, 1000);
       } else {
         setError(data.error || "Não foi possível gerar o código.");
       }
@@ -119,6 +135,9 @@ function AccessGuidePage({
       setLoading(false);
     }
   };
+
+ 
+
 
   return (
     <div className={pageClassName}>
@@ -206,42 +225,93 @@ function AccessGuidePage({
           </article>
 
           {/* --- Card de código --- */}
-          <article className="access-info-card neon-border access-info-card--generator">
-            <header>
-              <h2>{generator.title}</h2>
-            </header>
+    {/* --- Card de código --- */}
+<article className="access-info-card neon-border access-info-card--generator">
+  <header>
+    <h2>{generator.title}</h2>
+  </header>
 
-            {generator.greeting && (
-              <p className="generator-text">{generator.greeting}</p>
-            )}
+  {generator.greeting && (
+    <p className="generator-text">{generator.greeting}</p>
+  )}
 
-            {generator.hint && (
-              <div className="generator-callout">
-                <span className="generator-callout__icon">⚠</span>
-                <p>{highlightGeneratorHint(generator.hint)}</p>
-              </div>
-            )}
+  {/* --- Área principal --- */}
+  <div
+    className="generator-callout"
+    style={{
+      background: "rgba(10, 20, 35, 0.8)",
+      border: "1px solid rgba(0, 255, 255, 0.3)",
+      borderRadius: "12px",
+      padding: "16px",
+      textAlign: "center",
+      marginBottom: "20px",
+      display: "flex",
+      flexDirection: "column",
+      alignItems: "center",
+      justifyContent: "center",
+      minHeight: "120px",
+    }}
+  >
+    {codigo ? (
+      <>
+        <h1
+          style={{
+            color: "#00ffff",
+            fontSize: "20px",
+            fontWeight: "700",
+            margin: "0",
+            letterSpacing: "4px",
+            textAlign: "center",
+          }}
+        >
+          {codigo}
+        </h1>
+        <p
+          style={{
+            color: "#00ffff",
+            marginTop: "10px",
+            fontSize: "14px",
+            opacity: 0.8,
+          }}
+        >
+          expira em <strong>{timer}s</strong>
+        </p>
+      </>
+    ) : (
+      <>
+        <span className="generator-callout__icon">⚠</span>
+        <p
+          style={{
+            color: "#00ffff",
+            fontSize: "12px",
+            lineHeight: 1.5,
+          }}
+        >
+          Certifique-se de que você está na opção <b>AUTENTICADOR</b> antes de gerar o código de acesso.
+          O código dura somente 30 s.
+        </p>
+      </>
+    )}
+  </div>
 
-            <button
-              onClick={handleGerarCodigo}
-              className="button secondary-button access-card-action"
-              disabled={loading}
-            >
-              {loading ? "Buscando..." : generator.actionLabel}
-            </button>
+  {/* Botão */}
+  <button
+    onClick={handleGerarCodigo}
+    className="button secondary-button access-card-action"
+    disabled={loading}
+  >
+    {loading ? "Buscando..." : generator.actionLabel}
+  </button>
 
-            {/* Exibe código ou erro */}
-            {codigo && (
-              <p className="text-cyan-400 mt-2 text-lg font-mono">
-                Código atual: <strong>{codigo}</strong>
-              </p>
-            )}
-            {error && <p className="text-red-500 mt-2">{error}</p>}
+  {/* Erro */}
+  {error && <p className="text-red-500 mt-2">{error}</p>}
 
-            {generator.note && (
-              <p className="access-card-note">{generator.note}</p>
-            )}
-          </article>
+  {generator.note && (
+    <p className="access-card-note">{generator.note}</p>
+  )}
+</article>
+
+
         </section>
       </main>
     </div>

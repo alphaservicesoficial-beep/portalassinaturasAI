@@ -1,59 +1,71 @@
-import { useState } from 'react'
-import LoginPage from './pages/LoginPage.jsx'
-import DashboardPage from './pages/DashboardPage.jsx'
-import AccessGuidePage from './pages/AccessGuidePage.jsx'
-import ManageUserModal from './components/ManageUserModal.jsx'
-import ForgotPasswordModal from './components/ForgotPasswordModal.jsx'
-import WhatsAppButton from './components/WhatsAppButton.jsx'
+import { useState, useEffect } from 'react';
+import { onAuthStateChanged, signOut } from 'firebase/auth';
+import { auth } from './firebase';
+
+import LoginPage from './pages/LoginPage.jsx';
+import DashboardPage from './pages/DashboardPage.jsx';
+import AccessGuidePage from './pages/AccessGuidePage.jsx';
+import ManageUserModal from './components/ManageUserModal.jsx';
+import ForgotPasswordModal from './components/ForgotPasswordModal.jsx';
+import WhatsAppButton from './components/WhatsAppButton.jsx';
 
 function App() {
-  const [isLoggedIn, setIsLoggedIn] = useState(false)
-  const [isManageUserOpen, setIsManageUserOpen] = useState(false)
-  const [selectedTool, setSelectedTool] = useState(null)
-  const [isForgotPasswordOpen, setIsForgotPasswordOpen] = useState(false)
-  const [shouldAnimateDashboard, setShouldAnimateDashboard] = useState(false)
+  const [user, setUser] = useState(null);
+  const [isManageUserOpen, setIsManageUserOpen] = useState(false);
+  const [selectedTool, setSelectedTool] = useState(null);
+  const [isForgotPasswordOpen, setIsForgotPasswordOpen] = useState(false);
+  const [shouldAnimateDashboard, setShouldAnimateDashboard] = useState(false);
+  const [loading, setLoading] = useState(true);
 
-  const handleLogin = () => {
-    setIsLoggedIn(true)
-    setShouldAnimateDashboard(false)
-    setSelectedTool(null)
-  }
+  // 🔄 Detecta login automático do Firebase (mantém o usuário logado após reload)
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      setUser(user);
+      setLoading(false);
+    });
+    return unsubscribe;
+  }, []);
 
-  const handleLogout = () => {
-    setIsLoggedIn(false)
-    setIsManageUserOpen(false)
-    setIsForgotPasswordOpen(false)
-    setShouldAnimateDashboard(false)
-    setSelectedTool(null)
-  }
+  const handleLogin = (firebaseUser) => {
+    setUser(firebaseUser);
+    setShouldAnimateDashboard(false);
+    setSelectedTool(null);
+  };
 
-  const handleOpenManageUser = () => {
-    setIsManageUserOpen(true)
-  }
+  const handleLogout = async () => {
+    await signOut(auth);
+    setUser(null);
+    setIsManageUserOpen(false);
+    setIsForgotPasswordOpen(false);
+    setShouldAnimateDashboard(false);
+    setSelectedTool(null);
+  };
 
-  const handleCloseManageUser = () => {
-    setIsManageUserOpen(false)
-  }
+  const handleOpenManageUser = () => setIsManageUserOpen(true);
+  const handleCloseManageUser = () => setIsManageUserOpen(false);
 
-  const handleOpenForgotPassword = () => {
-    setIsForgotPasswordOpen(true)
-  }
-
-  const handleCloseForgotPassword = () => {
-    setIsForgotPasswordOpen(false)
-  }
+  const handleOpenForgotPassword = () => setIsForgotPasswordOpen(true);
+  const handleCloseForgotPassword = () => setIsForgotPasswordOpen(false);
 
   const handleToolSelect = (tool) => {
-    setShouldAnimateDashboard(false)
-    setSelectedTool({ ...tool, shouldAnimateGuide: true })
-  }
+    setShouldAnimateDashboard(false);
+    setSelectedTool({ ...tool, shouldAnimateGuide: true });
+  };
 
   const handleCloseAccessGuide = () => {
-    setSelectedTool(null)
-    setShouldAnimateDashboard(true)
+    setSelectedTool(null);
+    setShouldAnimateDashboard(true);
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-screen text-cyan-400 text-xl font-semibold">
+        Carregando...
+      </div>
+    );
   }
 
-  return isLoggedIn ? (
+  return user ? (
     <>
       {selectedTool ? (
         <AccessGuidePage
@@ -80,7 +92,7 @@ function App() {
       {isForgotPasswordOpen && <ForgotPasswordModal onClose={handleCloseForgotPassword} />}
       <WhatsAppButton />
     </>
-  )
+  );
 }
 
-export default App
+export default App;
