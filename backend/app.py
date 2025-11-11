@@ -220,8 +220,13 @@ def kirvano_webhook():
         return jsonify({"ok": False, "error": str(e)}), 500
 
 
-@app.post("/gerar-codigo")
+@app.route("/gerar-codigo", methods=["POST", "OPTIONS"])
 def gerar_codigo():
+    data = request.get_json(silent=True) or {}
+    email = data.get("email")
+    if not email:
+        return jsonify({"ok": False, "error": "E-mail não informado"}), 400
+
     try:
         data = request.get_json(silent=True) or {}
         email_usuario = data.get("email")
