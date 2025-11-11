@@ -80,7 +80,7 @@ def enviar_email_credenciais(destinatario: str, senha: str):
             <table role="presentation" cellspacing="0" cellpadding="0" border="0">
               <tr>
                 <td style="padding-right:10px;">
-                  <img src="{request.host_url}marca.png" alt="Logo Kirvano" width="50" style="border-radius:10px;">
+                  <img src="/public/marca.png"  alt="Logo Kirvano" width="50" style="border-radius:10px;">
 
                 </td>
                 <td>
