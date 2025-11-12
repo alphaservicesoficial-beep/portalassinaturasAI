@@ -198,7 +198,7 @@ def gerar_senha(tamanho: int = 10) -> str:
 def enviar_email_credenciais(destinatario: str, senha: str):
     assunto = "Acesso liberado ao Portal de Ferramentas"
 
-   corpo_html = f"""
+    corpo_html = f"""
 <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" 
        style="background-color:#0e1726; padding:40px 0; font-family:Arial, Helvetica, sans-serif; color:#ffffff; margin:0;">
   <tr>
