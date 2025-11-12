@@ -312,9 +312,8 @@ def kirvano_webhook():
     data = request.get_json(silent=True) or {}
     print("📦 Payload recebido:", data)
 
-    if data.get("event") != "SALE_APPROVED" or data.get("status") != "APPROVED":
-        return jsonify({"ok": True, "msg": "Evento ignorado"}), 200
-
+    event = data.get("event", "").upper()
+    status = data.get("status", "").upper()
     customer = data.get("customer", {})
     email = customer.get("email")
     nome = customer.get("name", "Cliente Kirvano")
@@ -325,26 +324,56 @@ def kirvano_webhook():
     produtos = data.get("products", [])
     produto_nome = produtos[0].get("name") if produtos else "Produto Kirvano"
 
+    # --- Função auxiliar para atualizar status no Firestore ---
+    def atualizar_status_usuario(email, ativo):
+        docs = db.collection("usuarios").where("email", "==", email).stream()
+        for doc in docs:
+            ref = db.collection("usuarios").document(doc.id)
+            ref.update({"ativo": ativo, "atualizado_em": datetime.now(timezone.utc).isoformat()})
+            print(f"🔥 Status do usuário {email} atualizado para {'ativo' if ativo else 'inativo'}")
+
     try:
-        resultado = criar_usuario_e_enviar(email)
+        if event == "SALE_APPROVED" or status == "APPROVED":
+            # ✅ Compra aprovada — cria ou reativa o usuário
+            resultado = criar_usuario_e_enviar(email)
 
-        db.collection("kirvano_compras").add({
-            "email": email,
-            "nome": nome,
-            "produto": produto_nome,
-            "status": data.get("status"),
-            "metodo_pagamento": data.get("payment_method"),
-            "data_compra": data.get("created_at"),
-            "sale_id": data.get("sale_id"),
-            "valor_total": data.get("total_price"),
-            "criado_em": datetime.now(timezone.utc).isoformat()
-        })
+            db.collection("kirvano_compras").add({
+                "email": email,
+                "nome": nome,
+                "produto": produto_nome,
+                "status": "APROVADO",
+                "evento": event,
+                "metodo_pagamento": data.get("payment_method"),
+                "data_compra": data.get("created_at"),
+                "sale_id": data.get("sale_id"),
+                "valor_total": data.get("total_price"),
+                "criado_em": datetime.now(timezone.utc).isoformat()
+            })
 
-        return jsonify({
-            "ok": True,
-            "msg": "Usuário criado e e-mail enviado com sucesso",
-            "uid": resultado["uid"]
-        }), 200
+            atualizar_status_usuario(email, True)
+            return jsonify({"ok": True, "msg": "Usuário criado ou reativado com sucesso"}), 200
+
+        elif event in ["SUBSCRIPTION_RENEWED", "SUBSCRIPTION_RENEWAL"] or "RENOVADA" in status:
+            # 🔄 Renovação de assinatura — mantém acesso ativo
+            atualizar_status_usuario(email, True)
+            print(f"🔁 Assinatura renovada para {email}")
+            return jsonify({"ok": True, "msg": "Assinatura renovada, acesso mantido"}), 200
+
+        elif event in ["SUBSCRIPTION_CANCELED", "SUBSCRIPTION_CANCELLED"] or "CANCELADA" in status:
+            # ❌ Assinatura cancelada — bloqueia acesso
+            atualizar_status_usuario(email, False)
+            print(f"🚫 Assinatura cancelada para {email}")
+            return jsonify({"ok": True, "msg": "Acesso bloqueado (assinatura cancelada)"}), 200
+
+        elif event in ["SUBSCRIPTION_DELAYED", "SUBSCRIPTION_OVERDUE"] or "ATRASADA" in status:
+            # ⚠️ Assinatura atrasada — suspende acesso
+            atualizar_status_usuario(email, False)
+            print(f"⚠️ Assinatura atrasada para {email}")
+            return jsonify({"ok": True, "msg": "Acesso suspenso (assinatura atrasada)"}), 200
+
+        else:
+            print(f"ℹ️ Evento ignorado: {event} ({status})")
+            return jsonify({"ok": True, "msg": f"Evento ignorado: {event}"}), 200
 
     except Exception as e:
         print("❌ ERRO NO WEBHOOK:")

@@ -1,6 +1,11 @@
 import { useState } from "react";
-import { signInWithEmailAndPassword, setPersistence, browserLocalPersistence } from "firebase/auth";
-import { auth } from "../firebase";
+import {
+  signInWithEmailAndPassword,
+  setPersistence,
+  browserLocalPersistence,
+} from "firebase/auth";
+import { auth, db } from "../firebase"; // 👈 precisa importar db
+import { doc, getDocs, collection, query, where } from "firebase/firestore";
 import { Eye, EyeOff } from "lucide-react";
 
 function LoginPage({ onLoginSuccess, onForgotPassword }) {
@@ -16,17 +21,45 @@ function LoginPage({ onLoginSuccess, onForgotPassword }) {
     setLoading(true);
 
     try {
-      // 🔐 Faz com que o login continue ativo mesmo após reload
+      // 🔐 Mantém login persistente
       await setPersistence(auth, browserLocalPersistence);
 
-      const userCredential = await signInWithEmailAndPassword(auth, email, password);
+      // 🔸 Faz login no Firebase Auth
+      const userCredential = await signInWithEmailAndPassword(
+        auth,
+        email,
+        password
+      );
       const user = userCredential.user;
 
-      // 💾 Guarda login local (opcional, caso queira usar no app)
-      localStorage.setItem("kirvanoUser", JSON.stringify({ email: user.email }));
+      // 🔍 Verifica status no Firestore
+      const q = query(
+        collection(db, "usuarios"),
+        where("email", "==", user.email)
+      );
+      const snapshot = await getDocs(q);
 
+      if (snapshot.empty) {
+        setError("Usuário não encontrado no banco de dados.");
+        await auth.signOut();
+        return;
+      }
+
+      const dados = snapshot.docs[0].data();
+      const ativo = dados.ativo !== false; // se não existir o campo, assume ativo
+
+      if (!ativo) {
+        setError(
+          "Sua assinatura foi cancelada ou está atrasada. Regularize para reativar o acesso."
+        );
+        await auth.signOut();
+        return;
+      }
+
+      // ✅ Tudo certo, guarda login local
+      localStorage.setItem("kirvanoUser", JSON.stringify({ email: user.email }));
       console.log("Usuário logado:", user);
-      onLoginSuccess(user); // Notifica o app principal
+      onLoginSuccess(user);
     } catch (err) {
       console.error("Erro no login:", err);
       setError("E-mail ou senha incorretos.");
@@ -70,21 +103,19 @@ function LoginPage({ onLoginSuccess, onForgotPassword }) {
               autoComplete="current-password"
               className="w-full bg-[#0e1726] border border-cyan-500/40 text-white rounded-lg px-4 py-2 pr-12 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-cyan-400/70 transition-all"
             />
-
-           
           </div>
 
           {error && <p className="text-red-500 text-sm mt-2">{error}</p>}
 
-          <button type="submit" className="button primary-button mt-3" disabled={loading}>
+          <button
+            type="submit"
+            className="button primary-button mt-3"
+            disabled={loading}
+          >
             {loading ? "Entrando..." : "Entrar"}
           </button>
 
-          <button
-            type="button"
-            className="link-button"
-            onClick={onForgotPassword}
-          >
+          <button type="button" className="link-button" onClick={onForgotPassword}>
             Esqueci minha senha
           </button>
         </form>

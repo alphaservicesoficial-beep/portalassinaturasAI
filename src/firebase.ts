@@ -1,6 +1,7 @@
 // src/firebase.js
 import { initializeApp } from "firebase/app";
 import { getAuth } from "firebase/auth";
+import { getFirestore } from "firebase/firestore"; // 👈 Adicione isto
 
 const firebaseConfig = {
   apiKey: "AIzaSyDwo5ScsP8TiwiGPuZB-GBdxSrHrwb0n70",
@@ -12,4 +13,7 @@ const firebaseConfig = {
 };
 
 const app = initializeApp(firebaseConfig);
+
 export const auth = getAuth(app);
+export const db = getFirestore(app); // 👈 Isso resolve o erro
+export default app;

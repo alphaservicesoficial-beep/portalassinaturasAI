@@ -1,6 +1,8 @@
 ﻿import { useMemo, useState } from "react";
 import Header from "../components/Header.jsx";
 import { useEffect, useRef } from "react";
+import { getAuth } from "firebase/auth";
+
 
 const API_URL = "https://kirvano-backend-warn.onrender.com";
 
@@ -103,6 +105,11 @@ function AccessGuidePage({
 
 const timerRef = useRef(null); 
 
+
+const auth = getAuth();
+const user = auth.currentUser;
+
+
 const handleGerarCodigo = async () => {
   setLoading(true);
   setError(null);
@@ -113,7 +120,8 @@ const handleGerarCodigo = async () => {
     const response = await fetch(`${API_URL}/gerar-codigo`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email: credentials.emailValue }),
+      body: JSON.stringify({ email: user?.email || credentials.emailValue }),
+
     });
 
     // Se o status for 403, trata de forma amigável
