@@ -285,7 +285,7 @@ def gerar_codigo():
             ref.set({"data": str(hoje), "total": 1})
 
         # Código temporário
-        code = "123456"
+        code = "".join(secrets.choice(string.digits) for _ in range(6))
 
         print(f"✅ Código gerado para {email_usuario}: {code}")
         return jsonify({"ok": True, "code": code}), 200
