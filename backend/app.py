@@ -199,83 +199,73 @@ def enviar_email_credenciais(destinatario: str, senha: str):
     assunto = "Acesso liberado ao Portal de Ferramentas"
 
     corpo_html = f"""
-<table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" 
-       style="background-color:#0e1726; padding:40px 0; font-family:Arial, Helvetica, sans-serif; color:#ffffff; margin:0;">
-  <tr>
-    <td align="center">
-      <table role="presentation" width="600" cellspacing="0" cellpadding="0" border="0" 
-             style="background-color:#141e30; border-radius:16px; box-shadow:0 0 25px rgba(0,255,255,0.2); overflow:hidden;">
-        
-        <!-- Espaçamento de segurança no topo -->
-        <tr><td style="height:20px; font-size:1px; line-height:1px;">&nbsp;</td></tr>
-        
-        <!-- Cabeçalho -->
+<div style="background-color:#0e1726; padding:40px; font-family:Arial, Helvetica, sans-serif; color:#ffffff;">
+  <div style="max-width:600px; margin:auto; background-color:#141e30; border-radius:16px;
+              box-shadow:0 0 25px rgba(0,255,255,0.2); overflow:hidden;">
+    
+    <!-- Cabeçalho -->
+    <div style="background-color:#00bcd4;
+                border-top-left-radius:16px;
+                border-top-right-radius:16px;
+                padding:20px 0; text-align:center;">
+      <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
         <tr>
-          <td align="center" style="background-color:#00bcd4;
-                                    border-top-left-radius:16px; border-top-right-radius:16px; padding:20px 0;">
+          <td align="center" valign="middle">
             <table role="presentation" cellspacing="0" cellpadding="0" border="0">
               <tr>
                 <td style="padding-right:10px;">
                   <img src="cid:kirvano_logo" alt="Logo Kirvano" width="50" style="border-radius:10px; display:block;">
                 </td>
-                <td align="left">
-                  <h1 style="margin:0; font-size:22px; color:#ffffff; font-weight:800;">Dominando Animações</h1>
+                <td>
+                  <h1 style="margin:0; font-size:20px; color:#ffffff; font-weight:800; font-family:Arial,Helvetica,sans-serif;">
+                    Dominando Animações
+                  </h1>
                 </td>
               </tr>
             </table>
-          </td>
-        </tr>
-
-        <!-- Corpo -->
-        <tr>
-          <td align="center" style="padding:35px 30px 30px 30px; text-align:center;">
-            <h2 style="color:#00ffff; font-size:22px; margin:0 0 15px 0;">Sua conta foi criada com sucesso!</h2>
-            <p style="font-size:16px; color:#cbd5e1; margin:0 0 25px 0;">
-              Agora você pode acessar o portal e explorar todas as ferramentas disponíveis.
-            </p>
-
-            <!-- Caixa com credenciais -->
-            <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" 
-                   style="background-color:#1e293b; border:1px solid rgba(0,255,255,0.3); border-radius:12px; margin:0 auto 25px auto; max-width:400px;">
-              <tr><td style="padding:20px; text-align:center;">
-                <p style="font-size:16px; margin:6px 0;"><strong>E-mail:</strong> {destinatario}</p>
-                <p style="font-size:16px; margin:6px 0;"><strong>Senha:</strong> {senha}</p>
-              </td></tr>
-            </table>
-
-            <!-- Botão principal -->
-            <table role="presentation" cellspacing="0" cellpadding="0" border="0" align="center">
-              <tr>
-                <td align="center" bgcolor="#00bcd4" 
-                    style="background-color:#00bcd4; border-radius:10px;">
-                  <a href="https://aiportalacesso.netlify.app"
-                     style="display:inline-block; padding:12px 30px; font-weight:bold; color:#0e1726; 
-                            text-decoration:none; font-size:16px; border-radius:10px;">
-                    Acessar o Portal
-                  </a>
-                </td>
-              </tr>
-            </table>
-
-            <p style="margin-top:30px; color:#94a3b8; font-size:14px; line-height:20px;">
-              Recomendamos alterar sua senha após o primeiro login.<br>
-              Caso tenha dúvidas, entre em contato com nosso suporte.
-            </p>
-          </td>
-        </tr>
-
-        <!-- Rodapé -->
-        <tr>
-          <td align="center" style="background-color:#0f172a; text-align:center; padding:14px; color:#64748b; font-size:13px;
-                                    border-top:1px solid rgba(0,255,255,0.1); border-bottom-left-radius:16px; border-bottom-right-radius:16px;">
-            &copy; {datetime.now().year} Dominando Animações • Todos os direitos reservados
           </td>
         </tr>
       </table>
-    </td>
-  </tr>
-</table>
+    </div>
+
+    <!-- Corpo -->
+    <div style="padding:30px; text-align:center;">
+      <h2 style="color:#00ffff; margin-top:0;">Sua conta foi criada com sucesso!</h2>
+      <p style="font-size:16px; color:#cbd5e1; margin:10px 0 25px;">
+        Agora você pode acessar o portal e explorar todas as ferramentas disponíveis.
+      </p>
+      
+      <div style="background-color:#1e293b; border:1px solid rgba(0,255,255,0.3); border-radius:12px;
+                  padding:20px; margin:25px 0; display:inline-block; text-align:left;">
+        <p style="font-size:16px; margin:6px 0;"><strong>E-mail:</strong> {destinatario}</p>
+        <p style="font-size:16px; margin:6px 0;"><strong>Senha:</strong> {senha}</p>
+      </div>
+
+      <div style="margin-top:25px;">
+        <a href="https://aiportalacesso.netlify.app"
+           style="background-color:#00bcd4; padding:12px 30px; color:#0e1726;
+                  text-decoration:none; font-weight:bold; border-radius:10px;
+                  display:inline-block;">
+          Acessar o Portal
+        </a>
+      </div>
+
+      <p style="margin-top:30px; color:#94a3b8; font-size:14px;">
+        Recomendamos alterar sua senha após o primeiro login.<br>
+        Caso tenha dúvidas, entre em contato com nosso suporte.
+      </p>
+    </div>
+
+    <!-- Rodapé -->
+    <div style="background-color:#0f172a; text-align:center; padding:14px; color:#64748b; font-size:13px;
+                border-top:1px solid rgba(0,255,255,0.1); border-bottom-left-radius:16px; border-bottom-right-radius:16px;">
+      &copy; {datetime.now().year} Dominando Animações • Todos os direitos reservados
+    </div>
+
+  </div>
+</div>
 """
+
 
 
     msg = EmailMessage()
