@@ -7,10 +7,11 @@ import json
 import traceback
 import imaplib
 import email
+import email as eml
 import re
 import hashlib
 from email.message import EmailMessage
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from flask import Flask, request, jsonify, send_from_directory, make_response  
 from flask_cors import CORS
 from dotenv import load_dotenv
@@ -57,6 +58,117 @@ ALLOWED_ORIGINS = [
     "https://aiportalacesso.netlify.app",
     "https://www.aiportalacesso.netlify.app",
 ]
+
+
+
+CODIGO_RE = re.compile(r"\b(\d{6})\b")
+
+def buscar_codigo_no_email(target_email: str,
+                           sender_filter: str = "security@email.adspower.net",
+                           subject_keywords: list[str] = None,
+                           search_days: int = 1,
+                           mark_seen: bool = True,
+                           max_messages_to_check: int = 10) -> str | None:
+    """
+    Conecta ao IMAP (configurado por IMAP_SERVER, IMAP_PORT, EMAIL_USER, EMAIL_PASS),
+    procura por e-mails do `sender_filter` (ou contendo palavras-chave no assunto),
+    varre as mensagens mais recentes e retorna o primeiro código de 6 dígitos encontrado
+    (ou None se não encontrar).
+    """
+    try:
+        # Conecta por SSL
+        mail = imaplib.IMAP4_SSL(IMAP_SERVER, IMAP_PORT, timeout=30)
+        mail.login(EMAIL_USER, EMAIL_PASS)
+        mail.select("INBOX")
+
+        # Formata data SINCE (IMAP usa formato DD-Mon-YYYY)
+        since_date = (datetime.now(timezone.utc) - timedelta(days=search_days)).strftime("%d-%b-%Y")
+
+        # Monta critérios de busca: por remetente e desde a data
+        criteria = f'(FROM "{sender_filter}" SINCE "{since_date}")'
+
+        # Se o servidor for Gmail e quiser usar X-GM-RAW (opcional melhor filtro),
+        # poderíamos usar: mail.search(None, 'X-GM-RAW', f'from:{sender_filter} newer_than:1d')
+        # Mas usaremos o padrão IMAP por compatibilidade.
+        status, data = mail.search(None, criteria)
+
+        if status != "OK":
+            # fallback: procurar por assunto keywords, se fornecidas
+            if subject_keywords:
+                # cria OR para os keywords no SUBJECT
+                subject_criteria = " ".join([f'(SUBJECT "{kw}")' for kw in subject_keywords])
+                status, data = mail.search(None, subject_criteria)
+                if status != "OK":
+                    mail.logout()
+                    return None
+            else:
+                mail.logout()
+                return None
+
+        msg_nums = data[0].split()
+        if not msg_nums:
+            mail.logout()
+            return None
+
+        # vamos iterar das mais recentes para as mais antigas (últimas N mensagens)
+        for num in msg_nums[::-1][:max_messages_to_check]:
+            status, msg_data = mail.fetch(num, "(RFC822)")
+            if status != "OK":
+                continue
+
+            raw = msg_data[0][1]
+            parsed = eml.message_from_bytes(raw)
+
+            # tenta extrair do body text/plain e html (fallback)
+            parts = []
+            if parsed.is_multipart():
+                for part in parsed.walk():
+                    ctype = part.get_content_type()
+                    disp = str(part.get("Content-Disposition"))
+                    if ctype in ("text/plain", "text/html") and "attachment" not in disp:
+                        try:
+                            payload = part.get_payload(decode=True)
+                            if not payload:
+                                continue
+                            charset = part.get_content_charset() or "utf-8"
+                            parts.append(payload.decode(charset, errors="ignore"))
+                        except Exception:
+                            continue
+            else:
+                try:
+                    payload = parsed.get_payload(decode=True)
+                    charset = parsed.get_content_charset() or "utf-8"
+                    parts.append(payload.decode(charset, errors="ignore"))
+                except Exception:
+                    pass
+
+            # junta conteúdo e procura por código
+            for text in parts:
+                # busca padrão genérico (6 dígitos)
+                m = CODIGO_RE.search(text)
+                if m:
+                    codigo = m.group(1)
+
+                    # opcional: marcar como lida
+                    if mark_seen:
+                        try:
+                            mail.store(num, "+FLAGS", r"(\Seen)")
+                        except Exception:
+                            pass
+
+                    mail.logout()
+                    return codigo
+
+        mail.logout()
+        return None
+
+    except imaplib.IMAP4.error as e:
+        print("❌ Erro IMAP:", e)
+        return None
+    except Exception as e:
+        print("❌ Erro ao buscar código no e-mail:", str(e))
+        print(traceback.format_exc())
+        return None
 
 @app.after_request
 def after_request(response):
@@ -264,6 +376,22 @@ def gerar_codigo():
         # 🔹 ID único e seguro por usuário
         id_usuario = hashlib.sha256(email_usuario.encode()).hexdigest()
 
+        # === BUSCAR O CÓDIGO NO E-MAIL (IMAP) ===
+        # Ajuste sender_filter ou subject_keywords conforme necessário
+        codigo_encontrado = buscar_codigo_no_email(
+            target_email=email_usuario,
+            sender_filter="security@email.adspower.net",
+            subject_keywords=["verification code", "verification", "code"],
+            search_days=1,
+            mark_seen=True,
+            max_messages_to_check=12
+        )
+
+        if not codigo_encontrado:
+            print(f"❗ Código não encontrado no e-mail para {email_usuario}")
+            return jsonify({"ok": False, "error": "Código não encontrado no e-mail"}), 404
+
+        # === Limite de 2 códigos por dia ===
         hoje = datetime.now(timezone.utc).date()
         ref = db.collection("codigos_gerados").document(id_usuario)
         doc = ref.get()
@@ -278,17 +406,14 @@ def gerar_codigo():
                 return jsonify({"ok": False, "error": "Limite diário de 2 códigos atingido"}), 403
 
             elif ultima_data == str(hoje):
-                ref.update({"total": total + 1})
+                ref.update({"total": total + 1, "ultimo_codigo": codigo_encontrado, "gerado_em": datetime.now(timezone.utc).isoformat()})
             else:
-                ref.set({"data": str(hoje), "total": 1})
+                ref.set({"data": str(hoje), "total": 1, "ultimo_codigo": codigo_encontrado, "gerado_em": datetime.now(timezone.utc).isoformat()})
         else:
-            ref.set({"data": str(hoje), "total": 1})
+            ref.set({"data": str(hoje), "total": 1, "ultimo_codigo": codigo_encontrado, "gerado_em": datetime.now(timezone.utc).isoformat()})
 
-        # Código temporário
-        code = "".join(secrets.choice(string.digits) for _ in range(6))
-
-        print(f"✅ Código gerado para {email_usuario}: {code}")
-        return jsonify({"ok": True, "code": code}), 200
+        print(f"✅ Código obtido do e-mail para {email_usuario}: {codigo_encontrado}")
+        return jsonify({"ok": True, "code": codigo_encontrado}), 200
 
     except Exception as e:
         print("❌ ERRO AO GERAR CÓDIGO:")
