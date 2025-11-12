@@ -8,6 +8,7 @@ import traceback
 import imaplib
 import email
 import re
+import hashlib
 from email.message import EmailMessage
 from datetime import datetime, timezone
 from flask import Flask, request, jsonify, send_from_directory, make_response  
