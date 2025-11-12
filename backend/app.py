@@ -243,7 +243,6 @@ def kirvano_webhook():
 def gerar_codigo():
     origin = request.headers.get("Origin", "")
 
-    # 🔹 Preflight (OPTIONS)
     if request.method == "OPTIONS":
         resp = make_response("", 204)
         if any(allowed in origin for allowed in ALLOWED_ORIGINS):
@@ -254,7 +253,6 @@ def gerar_codigo():
         resp.headers["Access-Control-Max-Age"] = "3600"
         return resp
 
-    # 🔹 POST real
     try:
         data = request.get_json(silent=True) or {}
         email_usuario = data.get("email")
@@ -262,9 +260,11 @@ def gerar_codigo():
         if not email_usuario:
             return jsonify({"ok": False, "error": "E-mail do usuário não informado"}), 400
 
-        # === Limite de 2 códigos por dia ===
+        # 🔹 ID único e seguro por usuário
+        id_usuario = hashlib.sha256(email_usuario.encode()).hexdigest()
+
         hoje = datetime.now(timezone.utc).date()
-        ref = db.collection("codigos_gerados").document(email_usuario)
+        ref = db.collection("codigos_gerados").document(id_usuario)
         doc = ref.get()
 
         if doc.exists:
@@ -283,7 +283,7 @@ def gerar_codigo():
         else:
             ref.set({"data": str(hoje), "total": 1})
 
-        # === Código mock por enquanto ===
+        # Código temporário
         code = "123456"
 
         print(f"✅ Código gerado para {email_usuario}: {code}")
@@ -293,7 +293,6 @@ def gerar_codigo():
         print("❌ ERRO AO GERAR CÓDIGO:")
         print(traceback.format_exc())
         return jsonify({"ok": False, "error": str(e)}), 500
-
 
 
 @app.route("/preview-email")
