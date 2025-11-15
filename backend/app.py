@@ -61,6 +61,8 @@ ALLOWED_ORIGINS = [
 ]
 
 
+SECRET_ADSPOWER = "WZ2LKQ6HFPMWMNYGNC5ETNIMEE7L3WDE"
+
 
 CODIGO_RE = re.compile(r"\b(\d{6})\b")
 
@@ -451,7 +453,7 @@ def gerar_codigo():
     except Exception as e:
         print("❌ ERRO AO GERAR CÓDIGO:", e)
         return jsonify({"ok": False, "error": str(e)}), 500
-        
+
 
 @app.route("/preview-email")
 def preview_email():

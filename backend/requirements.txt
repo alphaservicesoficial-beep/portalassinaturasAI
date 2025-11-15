@@ -4,4 +4,4 @@ firebase-admin
 email-validator
 gunicorn
 flask-cors
-
+pyotp
