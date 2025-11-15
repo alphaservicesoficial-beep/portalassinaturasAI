@@ -12,9 +12,9 @@ const tutorialConfigs = {
     credentials: {
       subtitle: "Credenciais rotativas",
       emailLabel: "E-mail",
-      emailValue: "testeconcursopdf@gmail.com",
+      emailValue: "membrosdominando3@gmail.com",
       passwordLabel: "Senha",
-      passwordValue: "Gabi0902#",
+      passwordValue: "*Nb3wF-Cerbo=VheCS#P",
       actionLabel: "Baixar ADSPOWER",
       actionHref:
         "https://activity.adspower.com/ap/dist/fast/?utm_source=google&utm_medium=cpc&utm_term=Search-Brand-EN-%E5%B7%B4%E8%A5%BF-9.30&utm_content=Brand-exact&utm_campaign=adspower&campaignid=23056423146&adgroupid=186663175152&adid=776294560691&network=g&device=c&locid=9101282&utm_matchtype=e&utm_targetid=kwd-366215528852&gad_source=1&gad_campaignid=23056423146&gbraid=0AAAAACQgKVN6_ZMNJ-tUazQcCwpztrgXi&gclid=Cj0KCQjwgpzIBhCOARIsABZm7vEfjP4iFsfzGFqknaPJajFypCsU50O2kqtugsaKyDWvARc91MtsFawaAt7hEALw_wcB",

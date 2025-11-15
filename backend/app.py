@@ -10,6 +10,7 @@ import email
 import email as eml
 import re
 import hashlib
+import pyotp
 from email.message import EmailMessage
 from datetime import datetime, timezone, timedelta
 from flask import Flask, request, jsonify, send_from_directory, make_response  
@@ -394,47 +395,22 @@ def kirvano_webhook():
         return jsonify({"ok": False, "error": str(e)}), 500
 
 
-@app.route("/gerar-codigo", methods=["POST", "OPTIONS"])
+@app.route("/gerar-codigo", methods=["POST"])
 def gerar_codigo():
-    origin = request.headers.get("Origin", "")
-
-    if request.method == "OPTIONS":
-        resp = make_response("", 204)
-        if any(allowed in origin for allowed in ALLOWED_ORIGINS):
-            resp.headers["Access-Control-Allow-Origin"] = origin
-        resp.headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization"
-        resp.headers["Access-Control-Allow-Methods"] = "POST, OPTIONS"
-        resp.headers["Access-Control-Allow-Credentials"] = "true"
-        resp.headers["Access-Control-Max-Age"] = "3600"
-        return resp
-
     try:
         data = request.get_json(silent=True) or {}
         email_usuario = data.get("email")
 
         if not email_usuario:
-            return jsonify({"ok": False, "error": "E-mail do usuário não informado"}), 400
+            return jsonify({"ok": False, "error": "E-mail não informado"}), 400
 
-        # 🔹 ID único e seguro por usuário
-        id_usuario = hashlib.sha256(email_usuario.encode()).hexdigest()
+        # ========== TOTP ==========
+        totp = pyotp.TOTP(SECRET_ADSPOWER)
+        codigo = totp.now()  # código igual ao Authenticator
 
-        # === BUSCAR O CÓDIGO NO E-MAIL (IMAP) ===
-        # Ajuste sender_filter ou subject_keywords conforme necessário
-        codigo_encontrado = buscar_codigo_no_email(
-            target_email=email_usuario,
-            sender_filter="security@email.adspower.net",
-            subject_keywords=["verification code", "verification", "code"],
-            search_days=1,
-            mark_seen=True,
-            max_messages_to_check=12
-        )
-
-        if not codigo_encontrado:
-            print(f"❗ Código não encontrado no e-mail para {email_usuario}")
-            return jsonify({"ok": False, "error": "Código não encontrado no e-mail"}), 404
-
-        # === Limite de 2 códigos por dia ===
+        # ===== Limite diário 2 códigos =====
         hoje = datetime.now(timezone.utc).date()
+        id_usuario = hashlib.sha256(email_usuario.encode()).hexdigest()
         ref = db.collection("codigos_gerados").document(id_usuario)
         doc = ref.get()
 
@@ -444,24 +420,38 @@ def gerar_codigo():
             total = dados.get("total", 0)
 
             if ultima_data == str(hoje) and total >= 2:
-                print(f"🚫 Limite atingido para {email_usuario}")
-                return jsonify({"ok": False, "error": "Limite diário de 2 códigos atingido"}), 403
+                return jsonify({
+                    "ok": False,
+                    "error": "Limite diário de 2 códigos atingido"
+                }), 403
 
             elif ultima_data == str(hoje):
-                ref.update({"total": total + 1, "ultimo_codigo": codigo_encontrado, "gerado_em": datetime.now(timezone.utc).isoformat()})
+                ref.update({
+                    "total": total + 1,
+                    "ultimo_codigo": codigo,
+                    "gerado_em": datetime.now(timezone.utc).isoformat()
+                })
             else:
-                ref.set({"data": str(hoje), "total": 1, "ultimo_codigo": codigo_encontrado, "gerado_em": datetime.now(timezone.utc).isoformat()})
+                ref.set({
+                    "data": str(hoje),
+                    "total": 1,
+                    "ultimo_codigo": codigo,
+                    "gerado_em": datetime.now(timezone.utc).isoformat()
+                })
         else:
-            ref.set({"data": str(hoje), "total": 1, "ultimo_codigo": codigo_encontrado, "gerado_em": datetime.now(timezone.utc).isoformat()})
+            ref.set({
+                "data": str(hoje),
+                "total": 1,
+                "ultimo_codigo": codigo,
+                "gerado_em": datetime.now(timezone.utc).isoformat()
+            })
 
-        print(f"✅ Código obtido do e-mail para {email_usuario}: {codigo_encontrado}")
-        return jsonify({"ok": True, "code": codigo_encontrado}), 200
+        return jsonify({"ok": True, "code": codigo}), 200
 
     except Exception as e:
-        print("❌ ERRO AO GERAR CÓDIGO:")
-        print(traceback.format_exc())
+        print("❌ ERRO AO GERAR CÓDIGO:", e)
         return jsonify({"ok": False, "error": str(e)}), 500
-
+        
 
 @app.route("/preview-email")
 def preview_email():
