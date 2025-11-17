@@ -245,7 +245,7 @@ def enviar_email_credenciais(destinatario: str, senha: str):
       </div>
 
       <div style="margin-top:25px;">
-        <a href="https://aiportalacesso.netlify.app"
+        <a href="https://portal.dominandoanimacao.com"
            style="background-color:#00bcd4; padding:12px 30px; color:#0e1726;
                   text-decoration:none; font-weight:bold; border-radius:10px;
                   display:inline-block;">
