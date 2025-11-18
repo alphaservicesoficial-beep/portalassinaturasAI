@@ -58,7 +58,7 @@ ALLOWED_ORIGINS = [
     "http://localhost:5173",
     "https://aiportalacesso.netlify.app",
     "https://www.aiportalacesso.netlify.app",
-    "https://portal.dominandoanimacao.com"",
+    "https://portal.dominandoanimacao.com",
 ]
 
 
