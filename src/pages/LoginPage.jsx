@@ -14,6 +14,8 @@ function LoginPage({ onLoginSuccess, onForgotPassword }) {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [assinaturaExpirada, setAssinaturaExpirada] = useState(false);
+
 
   const handleSubmit = async (event) => {
     event.preventDefault();
@@ -46,15 +48,17 @@ function LoginPage({ onLoginSuccess, onForgotPassword }) {
       }
 
       const dados = snapshot.docs[0].data();
-      const ativo = dados.ativo !== false; // se não existir o campo, assume ativo
+const ativo = dados.ativo !== false; // se não existir o campo, assume ativo
 
-      if (!ativo) {
-        setError(
-          "Sua assinatura foi cancelada ou está atrasada. Regularize para reativar o acesso."
-        );
-        await auth.signOut();
-        return;
-      }
+if (!ativo) {
+  setAssinaturaExpirada(true);
+  setError(
+    "Sua assinatura expirou ou foi cancelada."
+  );
+  await auth.signOut();
+  return;
+}
+
 
       // ✅ Tudo certo, guarda login local
       localStorage.setItem("kirvanoUser", JSON.stringify({ email: user.email }));
@@ -105,7 +109,45 @@ function LoginPage({ onLoginSuccess, onForgotPassword }) {
             />
           </div>
 
-          {error && <p className="text-red-500 text-sm mt-2">{error}</p>}
+          {/* Assinatura expirada */}
+{assinaturaExpirada && (
+  <div
+    style={{
+      marginTop: "16px",
+      padding: "16px",
+      borderRadius: "12px",
+      background: "rgba(255, 0, 0, 0.12)",
+      border: "1px solid rgba(255, 0, 0, 0.5)",
+      color: "#ff6b6b",
+      textAlign: "center",
+    }}
+  >
+    <h3 style={{ margin: 0, fontWeight: "700" }}>
+      🚫 Assinatura expirada
+    </h3>
+
+    <p style={{ margin: "8px 0", fontSize: "14px" }}>
+      Sua assinatura foi cancelada ou está vencida.
+      Para continuar usando a plataforma, é necessário renovar.
+    </p>
+
+   <a
+  href="https://pay.kirvano.com/494f4436-472b-41c5-8d57-b682b5196f9b"
+  target="_blank"
+  rel="noopener noreferrer"
+  className="button primary-button"
+  style={{ marginTop: "10px", display: "inline-block" }}
+>
+  Renovar assinatura
+</a>
+
+  </div>
+)}
+
+{/* Erro genérico (login inválido, etc) */}
+{error && !assinaturaExpirada && (
+  <p className="text-red-500 text-sm mt-2">{error}</p>
+)}
 
           <button
             type="submit"

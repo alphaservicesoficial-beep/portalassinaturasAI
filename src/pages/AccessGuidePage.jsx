@@ -8,13 +8,13 @@ const API_URL = "https://kirvano-backend-warn.onrender.com";
 
 const tutorialConfigs = {
   default: {
-    tutorialUrl: "",
+    tutorialUrl: "/video.mp4",
     credentials: {
       subtitle: "Credenciais rotativas",
       emailLabel: "E-mail",
       emailValue: "membrosdominando3@gmail.com",
       passwordLabel: "Senha",
-      passwordValue: "*Nb3wF-Cerbo=VheCS#P",
+      passwordValue: "!pUEk0-G3uDW*gnoK4=d",
       actionLabel: "Baixar ADSPOWER",
       actionHref:
         "https://activity.adspower.com/ap/dist/fast/?utm_source=google&utm_medium=cpc&utm_term=Search-Brand-EN-%E5%B7%B4%E8%A5%BF-9.30&utm_content=Brand-exact&utm_campaign=adspower&campaignid=23056423146&adgroupid=186663175152&adid=776294560691&network=g&device=c&locid=9101282&utm_matchtype=e&utm_targetid=kwd-366215528852&gad_source=1&gad_campaignid=23056423146&gbraid=0AAAAACQgKVN6_ZMNJ-tUazQcCwpztrgXi&gclid=Cj0KCQjwgpzIBhCOARIsABZm7vEfjP4iFsfzGFqknaPJajFypCsU50O2kqtugsaKyDWvARc91MtsFawaAt7hEALw_wcB",
@@ -84,6 +84,13 @@ function buildContent(tool) {
   };
 }
 
+const formatTime = (seconds) => {
+  const h = String(Math.floor(seconds / 3600)).padStart(2, "0");
+  const m = String(Math.floor((seconds % 3600) / 60)).padStart(2, "0");
+  const s = String(seconds % 60).padStart(2, "0");
+  return `${h}:${m}:${s}`;
+};
+
 function AccessGuidePage({
   tool,
   onBack,
@@ -91,6 +98,11 @@ function AccessGuidePage({
   onManageUser,
   animateEntry = false,
 }) {
+
+
+  // chave única por usuário + ferramenta
+
+
   const content = useMemo(() => buildContent(tool), [tool]);
   const { credentials, generator } = content;
   const pageClassName = animateEntry
@@ -102,15 +114,34 @@ function AccessGuidePage({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [timer, setTimer] = useState(0);
+  const [user, setUser] = useState(null);
+  const [cooldown, setCooldown] = useState(0); // segundos restantes pro usuário poder gerar de novo (24h)
+  
 
-const timerRef = useRef(null); 
 
 
-const auth = getAuth();
-const user = auth.currentUser;
+const timerRef = useRef(null);
+const cooldownRef = useRef(null); 
+
+
+
 
 
 const handleGerarCodigo = async () => {
+
+
+  // bloqueio por cooldown ativo
+if (cooldown > 0) {
+  setError("Limite diário atingido. Aguarde o tempo liberar.");
+  return;
+}
+
+
+  if (!user) {
+    setError("Usuário não autenticado. Aguarde alguns segundos e tente novamente.");
+    return;
+  }
+  
   setLoading(true);
   setError(null);
   setCodigo(null);
@@ -126,15 +157,51 @@ const handleGerarCodigo = async () => {
 
     // Se o status for 403, trata de forma amigável
     if (response.status === 403) {
-      const text = await response.text();
-      let msg = "Limite de 2 códigos atingido. Tente novamente amanhã.";
-      try {
-        const json = JSON.parse(text);
-        msg = json.error || msg;
-      } catch (_) {}
-      setError(msg);
-      return; // não segue para o resto
-    }
+  const text = await response.text();
+  let msg = "Limite diário atingido. Tente novamente em 24 horas.";
+
+  try {
+    const json = JSON.parse(text);
+    msg = json.error || msg;
+  } catch (_) {}
+
+  setError(msg);
+
+  // ⏱️ inicia cooldown de 24h (em segundos)
+  const totalSeconds = 24 * 60 * 60;
+
+// calcula timestamp final
+const expiresAt = Date.now() + totalSeconds * 1000;
+
+// salva no localStorage
+const cooldownKey = `cooldown_${user.email}`;
+
+localStorage.setItem(
+  cooldownKey,
+  JSON.stringify({ expiresAt })
+);
+
+
+setCooldown(totalSeconds);
+
+
+  // limpa timer anterior se existir
+  if (cooldownRef.current) clearInterval(cooldownRef.current);
+
+  cooldownRef.current = setInterval(() => {
+    setCooldown((prev) => {
+      if (prev <= 1) {
+        clearInterval(cooldownRef.current);
+        cooldownRef.current = null;
+        return 0;
+      }
+      return prev - 1;
+    });
+  }, 1000);
+
+  return;
+}
+
 
     if (!response.ok) {
       const text = await response.text();
@@ -174,6 +241,61 @@ const handleGerarCodigo = async () => {
 
 
 useEffect(() => {
+  const auth = getAuth();
+
+  const unsubscribe = auth.onAuthStateChanged((u) => {
+    setUser(u);
+  });
+
+  return () => unsubscribe();
+}, []);
+
+
+useEffect(() => {
+  if (!user) return;
+
+  const cooldownKey = `cooldown_${user.email}`;
+
+
+  const raw = localStorage.getItem(cooldownKey);
+  if (!raw) return;
+
+  let parsed;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    return;
+  }
+
+  if (!parsed.expiresAt) return;
+
+  const remaining = Math.floor((parsed.expiresAt - Date.now()) / 1000);
+
+  // se ainda está em cooldown
+  if (remaining > 0) {
+    setCooldown(remaining);
+
+    if (cooldownRef.current) clearInterval(cooldownRef.current);
+
+    cooldownRef.current = setInterval(() => {
+      setCooldown((prev) => {
+        if (prev <= 1) {
+          clearInterval(cooldownRef.current);
+          cooldownRef.current = null;
+          localStorage.removeItem(cooldownKey);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+  } else {
+    // já expirou
+    localStorage.removeItem(cooldownKey);
+  }
+}, [user]);
+
+
+useEffect(() => {
   return () => {
     if (timerRef.current) clearInterval(timerRef.current);
   };
@@ -199,13 +321,20 @@ useEffect(() => {
         <section className="tutorial-player neon-border">
           <div className="tutorial-player__frame">
             {content.tutorialUrl ? (
-              <iframe
-                src={content.tutorialUrl}
-                title={`Tutorial de acesso para ${tool.title}`}
-                loading="lazy"
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                allowFullScreen
-              />
+              <video
+  src={content.tutorialUrl}
+  controls
+  preload="metadata"
+  style={{
+    width: "100%",
+    height: "100%",
+    borderRadius: "12px",
+    background: "#000",
+  }}
+>
+  Seu navegador não suporta vídeo HTML5.
+</video>
+
             ) : (
               <div className="tutorial-player__placeholder">
                 <span className="tutorial-placeholder__badge">Em breve</span>
@@ -336,16 +465,57 @@ useEffect(() => {
 
  
    {/* Botão */}
-  <button
-    onClick={handleGerarCodigo}
-    className="button secondary-button access-card-action"
-    disabled={loading}
-  >
-    {loading ? "Buscando..." : generator.actionLabel}
-  </button>
+<button
+  onClick={handleGerarCodigo}
+  className="button secondary-button access-card-action"
+  disabled={loading || cooldown > 0}
+>
+  {loading
+    ? "Buscando..."
+    : !user
+    ? "Carregando usuário..."
+    : cooldown > 0
+    ? "Aguarde o tempo liberar"
+    : generator.actionLabel}
+</button>
+
+
+
 
   {/* Mensagem amigável de limite ou erro */}
-  {/* Erro */} {error && <p className="text-red-500 mt-2">{error}</p>} {generator.note && ( <p className="access-card-note">{generator.note}</p> )}
+  {/* Erro */} {/* Alerta de limite diário com timer */}
+{cooldown > 0 && (
+
+  <div
+    style={{
+      marginTop: "16px",
+      padding: "16px",
+      borderRadius: "12px",
+      background: "rgba(255, 0, 0, 0.12)",
+      border: "1px solid rgba(255, 0, 0, 0.5)",
+      color: "#ff6b6b",
+      textAlign: "center",
+    }}
+  >
+    <h3 style={{ margin: 0, fontWeight: "700" }}>
+      🚫 Limite diário atingido
+    </h3>
+
+    <p style={{ margin: "8px 0", fontSize: "14px" }}>
+      Você já utilizou os 2 códigos disponíveis hoje.
+    </p>
+
+    <p style={{ fontSize: "13px", opacity: 0.9 }}>
+      ⏳ Novo acesso em <b>{formatTime(cooldown)}</b>
+    </p>
+  </div>
+)}
+
+{/* Nota padrão */}
+{generator.note && (
+  <p className="access-card-note">{generator.note}</p>
+)}
+
 
 
 

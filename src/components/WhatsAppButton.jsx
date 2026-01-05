@@ -2,7 +2,7 @@ const WHATSAPP_NUMBER = '5531999999999'
 const WHATSAPP_MESSAGE = encodeURIComponent('Olá! Gostaria de saber mais sobre o portal de ferramentas de IA.')
 
 function WhatsAppButton() {
-  const href = `https://wa.me/${WHATSAPP_NUMBER}?text=${WHATSAPP_MESSAGE}`
+  const href = `https://wa.me/5527992815623?text=`
 
   return (
     <a
