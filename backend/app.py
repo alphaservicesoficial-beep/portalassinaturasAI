@@ -19,6 +19,7 @@ from dotenv import load_dotenv
 from email_validator import validate_email, EmailNotValidError
 import firebase_admin
 from firebase_admin import credentials, auth, firestore
+import resend
 
 # --- Carrega variáveis do .env ---
 load_dotenv()
@@ -44,6 +45,10 @@ SMTP_PORT = int(os.getenv("SMTP_PORT", "587"))
 EMAIL_USER = os.getenv("EMAIL_USER")
 EMAIL_PASS = os.getenv("EMAIL_PASS")
 SENDER_NAME = os.getenv("SENDER_NAME", "Kirvano")
+
+RESEND_API_KEY = os.getenv("RESEND_API_KEY")
+RESEND_FROM = os.getenv("RESEND_FROM", f"{SENDER_NAME} <no-reply@dominandoanimacao.com>")
+
 
 # --- IMAP (leitura de e-mails) ---
 IMAP_SERVER = os.getenv("IMAP_SERVER", "imap.gmail.com")
@@ -291,13 +296,17 @@ def enviar_email_credenciais(destinatario: str, senha: str):
     else:
         print("⚠️ Logo não encontrada em:", logo_path)
 
-    contexto = ssl.create_default_context()
-    with smtplib.SMTP(SMTP_HOST, SMTP_PORT) as server:
-        server.starttls(context=contexto)
-        server.login(EMAIL_USER, EMAIL_PASS)
-        server.send_message(msg)
+    # --- Envio via Resend ---
+    resend.api_key = RESEND_API_KEY
 
-    print(f"📧 E-mail enviado com sucesso para {destinatario}")
+    resend.Emails.send({
+        "from": RESEND_FROM,
+        "to": [destinatario],
+        "subject": assunto,
+        "html": corpo_html
+    })
+
+    print(f"📧 E-mail enviado via Resend para {destinatario}")
 
 
 def criar_usuario_e_enviar(email: str):
@@ -319,7 +328,11 @@ def criar_usuario_e_enviar(email: str):
         "criado_em": datetime.now(timezone.utc).isoformat()
     })
 
-    enviar_email_credenciais(email_validado, senha)
+    try:
+        enviar_email_credenciais(email_validado, senha)
+    except Exception as e:
+        print("⚠️ Falha ao enviar e-mail:", str(e))
+
     return {"ok": True, "uid": user.uid}
 
 
