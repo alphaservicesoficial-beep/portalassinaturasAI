@@ -1,4 +1,4 @@
-﻿import { useMemo, useState } from "react";
+﻿import React, { useMemo, useState } from "react";
 import Header from "../components/Header.jsx";
 import { useEffect, useRef } from "react";
 import { getAuth } from "firebase/auth";
@@ -91,6 +91,105 @@ const formatTime = (seconds) => {
   return `${h}:${m}:${s}`;
 };
 
+
+const CodeGeneratorCard = React.memo(function CodeGeneratorCard({
+  generator,
+  user,
+  codigo,
+  timer,
+  loading,
+  cooldown,
+  onGerarCodigo,
+}) {
+  return (
+    <article className="access-info-card neon-border access-info-card--generator">
+      <header>
+        <h2>{generator.title}</h2>
+      </header>
+
+      {generator.greeting && (
+        <p className="generator-text">{generator.greeting}</p>
+      )}
+
+      <div
+        className="generator-callout"
+        style={{
+          background: "rgba(10, 20, 35, 0.8)",
+          border: "1px solid rgba(0, 255, 255, 0.3)",
+          borderRadius: "12px",
+          padding: "16px",
+          textAlign: "center",
+          marginBottom: "20px",
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          justifyContent: "center",
+          minHeight: "120px",
+        }}
+      >
+        {codigo ? (
+          <>
+            <h1
+              style={{
+                color: "#00ffff",
+                fontSize: "20px",
+                fontWeight: "700",
+                margin: "0",
+                letterSpacing: "4px",
+              }}
+            >
+              {codigo}
+            </h1>
+            <p style={{ color: "#00ffff", marginTop: "10px", fontSize: "14px" }}>
+              expira em <strong>{timer}s</strong>
+            </p>
+          </>
+        ) : (
+          <p style={{ color: "#00ffff", fontSize: "12px" }}>
+            Certifique-se de que você está na opção <b>AUTENTICADOR</b>.
+            O código dura somente 30 s.
+          </p>
+        )}
+      </div>
+
+      <button
+        onClick={onGerarCodigo}
+        className="button secondary-button access-card-action"
+        disabled={loading || cooldown > 0}
+      >
+        {loading
+          ? "Buscando..."
+          : !user
+          ? "Carregando usuário..."
+          : cooldown > 0
+          ? "Aguarde o tempo liberar"
+          : generator.actionLabel}
+      </button>
+
+      {cooldown > 0 && (
+        <div
+          style={{
+            marginTop: "16px",
+            padding: "16px",
+            borderRadius: "12px",
+            background: "rgba(255, 0, 0, 0.12)",
+            border: "1px solid rgba(255, 0, 0, 0.5)",
+            color: "#ff6b6b",
+            textAlign: "center",
+          }}
+        >
+          ⏳ Novo acesso em <b>{formatTime(cooldown)}</b>
+        </div>
+      )}
+
+      {generator.note && (
+        <p className="access-card-note">{generator.note}</p>
+      )}
+    </article>
+  );
+});
+
+
 function AccessGuidePage({
   tool,
   onBack,
@@ -121,7 +220,9 @@ function AccessGuidePage({
 
 
 const timerRef = useRef(null);
-const cooldownRef = useRef(null); 
+const cooldownRef = useRef(null);
+const videoRef = useRef(null);
+
 
 
 
@@ -301,6 +402,14 @@ useEffect(() => {
   };
 }, []);
 
+useEffect(() => {
+  if (videoRef.current) {
+    videoRef.current.pause();
+    videoRef.current.play().catch(() => {});
+  }
+}, []);
+
+
   return (
     <div className={pageClassName}>
       <Header onLogout={onLogout} onManageUser={onManageUser} />
@@ -321,19 +430,23 @@ useEffect(() => {
         <section className="tutorial-player neon-border">
           <div className="tutorial-player__frame">
             {content.tutorialUrl ? (
-              <video
+             <video
+  ref={videoRef}
   src={content.tutorialUrl}
   controls
   preload="metadata"
+  playsInline
   style={{
     width: "100%",
     height: "100%",
     borderRadius: "12px",
-    background: "#000",
+    backgroundColor: "#000",
+    objectFit: "contain",
   }}
 >
   Seu navegador não suporta vídeo HTML5.
 </video>
+
 
             ) : (
               <div className="tutorial-player__placeholder">
@@ -393,133 +506,16 @@ useEffect(() => {
             )}
           </article>
 
-          {/* --- Card de código --- */}
-    {/* --- Card de código --- */}
-<article className="access-info-card neon-border access-info-card--generator">
-  <header>
-    <h2>{generator.title}</h2>
-  </header>
+         <CodeGeneratorCard
+  generator={generator}
+  user={user}
+  codigo={codigo}
+  timer={timer}
+  loading={loading}
+  cooldown={cooldown}
+  onGerarCodigo={handleGerarCodigo}
+/>
 
-  {generator.greeting && (
-    <p className="generator-text">{generator.greeting}</p>
-  )}
-
-  {/* --- Área principal --- */}
-  <div
-    className="generator-callout"
-    style={{
-      background: "rgba(10, 20, 35, 0.8)",
-      border: "1px solid rgba(0, 255, 255, 0.3)",
-      borderRadius: "12px",
-      padding: "16px",
-      textAlign: "center",
-      marginBottom: "20px",
-      display: "flex",
-      flexDirection: "column",
-      alignItems: "center",
-      justifyContent: "center",
-      minHeight: "120px",
-    }}
-  >
-    {codigo ? (
-      <>
-        <h1
-          style={{
-            color: "#00ffff",
-            fontSize: "20px",
-            fontWeight: "700",
-            margin: "0",
-            letterSpacing: "4px",
-            textAlign: "center",
-          }}
-        >
-          {codigo}
-        </h1>
-        <p
-          style={{
-            color: "#00ffff",
-            marginTop: "10px",
-            fontSize: "14px",
-            opacity: 0.8,
-          }}
-        >
-          expira em <strong>{timer}s</strong>
-        </p>
-      </>
-    ) : (
-      <>
-        <span className="generator-callout__icon">⚠</span>
-        <p
-          style={{
-            color: "#00ffff",
-            fontSize: "12px",
-            lineHeight: 1.5,
-          }}
-        >
-          Certifique-se de que você está na opção <b>AUTENTICADOR</b> antes de gerar o código de acesso.
-          O código dura somente 30 s.
-        </p>
-      </>
-    )}
-  </div>
-
- 
-   {/* Botão */}
-<button
-  onClick={handleGerarCodigo}
-  className="button secondary-button access-card-action"
-  disabled={loading || cooldown > 0}
->
-  {loading
-    ? "Buscando..."
-    : !user
-    ? "Carregando usuário..."
-    : cooldown > 0
-    ? "Aguarde o tempo liberar"
-    : generator.actionLabel}
-</button>
-
-
-
-
-  {/* Mensagem amigável de limite ou erro */}
-  {/* Erro */} {/* Alerta de limite diário com timer */}
-{cooldown > 0 && (
-
-  <div
-    style={{
-      marginTop: "16px",
-      padding: "16px",
-      borderRadius: "12px",
-      background: "rgba(255, 0, 0, 0.12)",
-      border: "1px solid rgba(255, 0, 0, 0.5)",
-      color: "#ff6b6b",
-      textAlign: "center",
-    }}
-  >
-    <h3 style={{ margin: 0, fontWeight: "700" }}>
-      🚫 Limite diário atingido
-    </h3>
-
-    <p style={{ margin: "8px 0", fontSize: "14px" }}>
-      Você já utilizou os 2 códigos disponíveis hoje.
-    </p>
-
-    <p style={{ fontSize: "13px", opacity: 0.9 }}>
-      ⏳ Novo acesso em <b>{formatTime(cooldown)}</b>
-    </p>
-  </div>
-)}
-
-{/* Nota padrão */}
-{generator.note && (
-  <p className="access-card-note">{generator.note}</p>
-)}
-
-
-
-
-</article>
 
 
         </section>

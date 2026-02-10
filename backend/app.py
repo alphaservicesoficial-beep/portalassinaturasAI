@@ -217,9 +217,7 @@ def enviar_email_credenciais(destinatario: str, senha: str):
           <td align="center" valign="middle">
             <table role="presentation" cellspacing="0" cellpadding="0" border="0">
               <tr>
-                <td style="padding-right:10px;">
-                  <img src="cid:kirvano_logo" alt="Logo Kirvano" width="50" style="border-radius:10px; display:block;">
-                </td>
+               
                 <td>
                   <h1 style="margin:0; font-size:20px; color:#ffffff; font-weight:800; font-family:Arial,Helvetica,sans-serif;">
                     Dominando Animações
@@ -278,7 +276,8 @@ def enviar_email_credenciais(destinatario: str, senha: str):
     msg["To"] = destinatario
     msg.add_alternative(corpo_html, subtype="html")
 
-    logo_path = os.path.join(os.path.dirname(__file__), "../public/marca.png")
+    logo_path = os.path.join(os.path.dirname(__file__), "public", "marca.png")
+
 
     if os.path.exists(logo_path):
         with open(logo_path, "rb") as img:
