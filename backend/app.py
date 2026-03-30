@@ -436,10 +436,10 @@ def gerar_codigo():
             ultima_data = dados.get("data")
             total = dados.get("total", 0)
 
-            if ultima_data == str(hoje) and total >= 2:
+            if ultima_data == str(hoje) and total >= 5:
                 return jsonify({
                     "ok": False,
-                    "error": "Limite diário de 2 códigos atingido"
+                    "error": "Limite diário de 5 códigos atingido"
                 }), 403
 
             elif ultima_data == str(hoje):

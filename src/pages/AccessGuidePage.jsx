@@ -26,7 +26,7 @@ const tutorialConfigs = {
         "Gere seu código de autenticação de dois fatores para acessar a ferramenta {tool}.",
       hint: "Certifique-se de que você está na opção AUTENTICADOR antes de gerar o código de acesso. O código dura somente 30s.",
       actionLabel: "Gerar código",
-      note: "Você pode solicitar até 2 CÓDIGOS válidos por dia. Utilize somente quando necessário.",
+      note: "Você pode solicitar até 5 CÓDIGOS válidos por dia. Utilize somente quando necessário.",
     },
   },
 };
